@@ -1,0 +1,87 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Mini-Compilador Educativo",
+  "projectDescription": "Educational compiler that transforms a simplified high-level language into x86 assembly code through lexical, syntactic, and semantic analysis phases.",
+  "theme": "aspen",
+  "primaryColor": "#2563EB",
+  "lightColor": "#3B82F6",
+  "darkColor": "#1E40AF",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get Started",
+        "pages": [
+          "introduction",
+          "installation",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Core Concepts",
+        "pages": [
+          "concepts/architecture",
+          "concepts/grammar",
+          "concepts/compilation-phases"
+        ]
+      },
+      {
+        "group": "Guides",
+        "pages": [
+          "guides/writing-programs",
+          "guides/using-cli",
+          "guides/using-gui",
+          "guides/interpreting-output"
+        ]
+      },
+      {
+        "group": "Compiler Components",
+        "pages": [
+          "components/lexical-analysis",
+          "components/syntactic-analysis",
+          "components/semantic-analysis",
+          "components/ir-generation",
+          "components/interpreter",
+          "components/code-generation"
+        ]
+      },
+      {
+        "group": "API Reference",
+        "pages": [
+          "api/scanner",
+          "api/parser",
+          "api/semantic-analyzer",
+          "api/ir-generator",
+          "api/interpreter",
+          "api/asm-generator"
+        ]
+      },
+      {
+        "group": "Examples",
+        "pages": [
+          "examples/basic-programs",
+          "examples/expressions",
+          "examples/error-handling"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Complete educational compiler with all compilation phases",
+    "Lexical, syntactic, and semantic analysis",
+    "Three-address code intermediate representation",
+    "Built-in interpreter for real-time execution",
+    "x86 assembly code generation (EMU8086 compatible)",
+    "Both CLI and GUI interfaces with syntax highlighting",
+    "Comprehensive error detection and reporting"
+  ],
+  "publicApiSurface": [
+    "Scanner - Lexical analysis (tokenization)",
+    "Parser - Syntactic analysis (AST construction)",
+    "AnalizadorSemantico - Semantic validation",
+    "GeneradorIR - Intermediate representation generation",
+    "Interprete - Code interpretation and execution",
+    "GeneradorASM - x86 assembly code generation",
+    "compilar() - Main compilation function",
+    "InterfazCompilador - GUI application class"
+  ]
+}
