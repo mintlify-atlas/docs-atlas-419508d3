@@ -1,0 +1,187 @@
+---
+title: 'Scanner'
+description: 'Lexical analyzer that converts source code into tokens'
+icon: 'magnifying-glass'
+---
+
+## Overview
+
+The `Scanner` class (also known as a lexer or tokenizer) performs lexical analysis by reading source code character by character and converting it into a sequence of tokens. It's the first phase of the compilation process.
+
+## Class Definition
+
+```python
+class Scanner:
+    def __init__(self, codigo_fuente: str)
+```
+
+### Constructor Parameters
+
+<ParamField path="codigo_fuente" type="str" required>
+  The complete source code text to be analyzed
+</ParamField>
+
+## Attributes
+
+- `fuente` (str): The complete source code
+- `tokens` (List[Token]): List of tokens found during scanning
+- `inicio` (int): Start position of the current token
+- `actual` (int): Current reading position
+- `linea` (int): Current line number (starts at 1)
+- `columna` (int): Current column number (starts at 1)
+- `columna_inicio` (int): Column where the current token starts
+- `errores` (List[str]): List of lexical errors found
+
+## Public Methods
+
+### escanear_tokens()
+
+Scans the entire source code and returns the list of tokens.
+
+```python
+def escanear_tokens(self) -> List[Token]
+```
+
+<ResponseField name="return" type="List[Token]">
+  List of all tokens found in the source code, including a final `FIN_ARCHIVO` token
+</ResponseField>
+
+**Example:**
+```python
+scanner = Scanner("let x = 10;")
+tokens = scanner.escanear_tokens()
+
+for token in tokens:
+    print(token)
+# Output:
+# Token(LET, 'let', línea=1, col=1)
+# Token(IDENTIFICADOR, 'x', línea=1, col=5)
+# Token(IGUAL, '=', línea=1, col=7)
+# Token(NUMERO, '10', línea=1, col=9, valor=10)
+# Token(PUNTO_COMA, ';', línea=1, col=11)
+# Token(FIN_ARCHIVO, '', línea=1, col=12)
+```
+
+## Supported Token Types
+
+The Scanner recognizes the following token types:
+
+### Keywords
+- `LET`: Variable declaration keyword
+- `PRINT`: Print statement keyword
+- `LEO`: Reserved keyword (no operation)
+- `DIEGO`: Reserved keyword (no operation)
+
+### Literals
+- `NUMERO`: Integer numbers (e.g., 10, 42, 100)
+- `IDENTIFICADOR`: Variable names (e.g., x, suma, miVariable)
+
+### Operators
+- `SUMA`: Addition operator (+)
+- `RESTA`: Subtraction operator (-)
+- `MULTIPLICACION`: Multiplication operator (*)
+- `DIVISION`: Division operator (/)
+- `IGUAL`: Assignment operator (=)
+
+### Delimiters
+- `PAREN_IZQ`: Left parenthesis "("
+- `PAREN_DER`: Right parenthesis ")"
+- `PUNTO_COMA`: Semicolon ";"
+
+### Special
+- `FIN_ARCHIVO`: End of file marker
+- `ERROR`: Invalid token
+
+## Features
+
+### Comment Support
+
+The Scanner supports single-line comments using `//`:
+
+```python
+scanner = Scanner("let x = 5; // this is a comment")
+tokens = scanner.escanear_tokens()
+# The comment is ignored during tokenization
+```
+
+### Error Handling
+
+When the Scanner encounters an invalid character, it:
+1. Adds an error message to the `errores` list
+2. Creates an `ERROR` token
+3. Continues scanning (error recovery)
+
+```python
+scanner = Scanner("let x = @;")
+tokens = scanner.escanear_tokens()
+
+if scanner.errores:
+    for error in scanner.errores:
+        print(error)
+    # Output: Error léxico en línea 1, columna 9: carácter inesperado '@'
+```
+
+## Implementation Details
+
+### Reserved Words
+
+The Scanner maintains a dictionary of reserved words:
+
+```python
+PALABRAS_RESERVADAS = {
+    'let': TipoToken.LET,
+    'print': TipoToken.PRINT,
+    'leo': TipoToken.LEO,
+    'diego': TipoToken.DIEGO,
+}
+```
+
+### Number Recognition
+
+Numbers are recognized as sequences of digits:
+- Only integer numbers are supported
+- Decimal numbers are not supported in this version
+
+### Identifier Rules
+
+Identifiers must:
+- Start with a letter (a-z, A-Z) or underscore (_)
+- Can contain letters, numbers, and underscores
+- Cannot be a reserved word
+
+**Valid identifiers:** `x`, `suma_total`, `miVariable`, `_private`, `contador1`
+
+**Invalid identifiers:** `1variable` (starts with number), `let` (reserved word)
+
+## Usage Example
+
+```python
+from compfinal import Scanner
+
+# Create scanner with source code
+code = """
+let x = 10;
+let y = 20;
+print x + y;
+"""
+
+scanner = Scanner(code)
+tokens = scanner.escanear_tokens()
+
+# Check for errors
+if scanner.errores:
+    print("Lexical errors found:")
+    for error in scanner.errores:
+        print(f"  - {error}")
+else:
+    print(f"Successfully scanned {len(tokens)} tokens")
+    for token in tokens:
+        if token.tipo != TipoToken.FIN_ARCHIVO:
+            print(f"  {token}")
+```
+
+## See Also
+
+- [Parser](/api/parser) - Next phase: syntactic analysis
+- [Grammar](/concepts/grammar) - Token types and language specification
+- [Lexical Analysis](/components/lexical-analysis) - Understanding the scanning phase

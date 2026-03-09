@@ -1,97 +1,108 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Mini-Compilador Educativo"
+description: "Educational compiler that transforms a simplified high-level language into x86 assembly code through complete compilation phases"
 ---
 
-## Setting up
+## Overview
 
-Get your documentation site up and running in minutes.
+Mini-Compilador Educativo is a fully functional educational compiler designed to teach the fundamentals of compiler construction. It demonstrates all major compilation phases from lexical analysis to x86 assembly code generation, making it perfect for students and educators.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running with your first program in minutes
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Learn how the compiler works under the hood
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Grammar Reference" icon="book" href="/concepts/grammar">
+    Understand the supported language syntax
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Examples" icon="code" href="/examples/basic-programs">
+    Explore real code examples and use cases
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Key Features
 
-Everything you need to create world-class documentation.
+<CardGroup cols={3}>
+  <Card title="Complete Compilation Pipeline" icon="gears">
+    Full implementation of lexical, syntactic, and semantic analysis phases
+  </Card>
+  <Card title="Intermediate Representation" icon="layer-group">
+    Three-address code (IR) generation for optimization opportunities
+  </Card>
+  <Card title="Built-in Interpreter" icon="play">
+    Execute programs directly without assembly for rapid testing
+  </Card>
+  <Card title="x86 Code Generation" icon="microchip">
+    Generate EMU8086-compatible assembly code from high-level source
+  </Card>
+  <Card title="Dual Interface" icon="window-restore">
+    Both command-line and graphical interfaces with syntax highlighting
+  </Card>
+  <Card title="Error Detection" icon="triangle-exclamation">
+    Comprehensive error reporting across all compilation phases
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Compilation Phases
 
-## Need inspiration?
+The compiler implements a complete pipeline that mirrors production compilers:
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Steps>
+  <Step title="Lexical Analysis">
+    Tokenizes source code into meaningful symbols using the Scanner class
+  </Step>
+  <Step title="Syntactic Analysis">
+    Validates grammar and constructs an Abstract Syntax Tree (AST) with the Parser
+  </Step>
+  <Step title="Semantic Analysis">
+    Checks for logical errors like undefined variables and division by zero
+  </Step>
+  <Step title="IR Generation">
+    Creates three-address code intermediate representation for optimization
+  </Step>
+  <Step title="Interpretation">
+    Optionally executes the program directly for immediate feedback
+  </Step>
+  <Step title="Code Generation">
+    Produces x86 assembly code compatible with EMU8086 emulator
+  </Step>
+</Steps>
+
+## Supported Language
+
+The compiler accepts a simplified imperative language with two main statement types:
+
+```python
+let x = 10 + 5;
+let y = x * 2;
+print y;
+```
+
+The language supports:
+- Variable declarations with `let`
+- Arithmetic expressions (`+`, `-`, `*`, `/`)
+- Print statements for output
+- Parenthesized expressions for precedence control
+
+<Note>
+This educational compiler is designed for ESIME Culhuacán's Compiler course (Group 5CM24). It demonstrates production compiler techniques in a digestible format.
+</Note>
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install Python dependencies and set up your environment
+  </Card>
+  <Card title="Write Your First Program" icon="pencil" href="/guides/writing-programs">
+    Learn the language syntax and write your first compiler program
+  </Card>
+  <Card title="Use the CLI" icon="terminal" href="/guides/using-cli">
+    Compile and run programs from the command line
+  </Card>
+  <Card title="Use the GUI" icon="desktop" href="/guides/using-gui">
+    Explore the graphical interface with live compilation
+  </Card>
+</CardGroup>

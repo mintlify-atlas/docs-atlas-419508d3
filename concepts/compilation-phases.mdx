@@ -1,0 +1,856 @@
+---
+title: 'Compilation Phases'
+description: 'Detailed walkthrough of each compilation phase with transformation examples'
+---
+
+## Overview
+
+The Mini-Compilador Educativo transforms source code through six sequential phases, each building on the output of the previous one. This page provides an in-depth look at how a sample program flows through the entire compilation pipeline.
+
+## Example Program
+
+We'll trace this simple program through all phases:
+
+```javascript
+let a = 5;
+let b = 10;
+let c = a + b * 2;
+print c;
+```
+
+<Note>
+Expected output: `30` (because `b * 2 = 20`, then `a + 20 = 25`... wait, let me recalculate: `10 * 2 = 20`, `5 + 20 = 25`. Actually the output should be `25`.)
+</Note>
+
+---
+
+## Phase 1: Lexical Analysis (Scanner)
+
+<Steps>
+  <Step title="Input">
+    Raw character stream:
+    ```
+    let a = 5;\nlet b = 10;\nlet c = a + b * 2;\nprint c;
+    ```
+  </Step>
+  
+  <Step title="Processing">
+    The `Scanner` class reads character-by-character:
+    
+    1. Recognizes keywords by dictionary lookup
+    2. Identifies operators as single characters
+    3. Accumulates digit sequences into numbers
+    4. Collects alphanumeric sequences into identifiers
+    5. Tracks line and column positions
+  </Step>
+  
+  <Step title="Output">
+    List of tokens with metadata:
+  </Step>
+</Steps>
+
+<CodeGroup>
+```python Token Stream
+[
+  Token(LET, 'let', línea=1, col=1),
+  Token(IDENTIFICADOR, 'a', línea=1, col=5),
+  Token(IGUAL, '=', línea=1, col=7),
+  Token(NUMERO, '5', línea=1, col=9, valor=5),
+  Token(PUNTO_COMA, ';', línea=1, col=10),
+  
+  Token(LET, 'let', línea=2, col=1),
+  Token(IDENTIFICADOR, 'b', línea=2, col=5),
+  Token(IGUAL, '=', línea=2, col=7),
+  Token(NUMERO, '10', línea=2, col=9, valor=10),
+  Token(PUNTO_COMA, ';', línea=2, col=11),
+  
+  Token(LET, 'let', línea=3, col=1),
+  Token(IDENTIFICADOR, 'c', línea=3, col=5),
+  Token(IGUAL, '=', línea=3, col=7),
+  Token(IDENTIFICADOR, 'a', línea=3, col=9),
+  Token(SUMA, '+', línea=3, col=11),
+  Token(IDENTIFICADOR, 'b', línea=3, col=13),
+  Token(MULTIPLICACION, '*', línea=3, col=15),
+  Token(NUMERO, '2', línea=3, col=17, valor=2),
+  Token(PUNTO_COMA, ';', línea=3, col=18),
+  
+  Token(PRINT, 'print', línea=4, col=1),
+  Token(IDENTIFICADOR, 'c', línea=4, col=7),
+  Token(PUNTO_COMA, ';', línea=4, col=8),
+  
+  Token(FIN_ARCHIVO, '', línea=4, col=9)
+]
+```
+
+```python Source Code Reference
+# Scanner implementation: compfinal.py:207-491
+
+def escanear_tokens(self) -> List[Token]:
+    while not self._fin():
+        self.inicio = self.actual
+        self.columna_inicio = self.columna
+        self._escanear_token()
+    
+    self.tokens.append(Token(
+        TipoToken.FIN_ARCHIVO, 
+        '', 
+        self.linea, 
+        self.columna
+    ))
+    
+    return self.tokens
+```
+</CodeGroup>
+
+### Key Features
+
+<CardGroup cols={2}>
+  <Card title="Position Tracking" icon="map-marker">
+    Every token stores its line and column for precise error reporting.
+  </Card>
+  
+  <Card title="Value Extraction" icon="calculator">
+    Numeric tokens carry both the original string (`lexema`) and parsed integer (`valor`).
+  </Card>
+  
+  <Card title="Comment Handling" icon="comment">
+    `//` comments are consumed without generating tokens (see `compfinal.py:319-327`).
+  </Card>
+  
+  <Card title="Error Collection" icon="exclamation-circle">
+    Invalid characters add to `Scanner.errores` list but don't stop scanning.
+  </Card>
+</CardGroup>
+
+---
+
+## Phase 2: Syntactic Analysis (Parser)
+
+<Steps>
+  <Step title="Input">
+    Token stream from Scanner
+  </Step>
+  
+  <Step title="Processing">
+    The `Parser` uses **recursive descent** to match tokens against grammar rules:
+    
+    1. `parsear()` → processes statements until EOF
+    2. `_sentencia()` → dispatches to `_declaracion_variable()` or `_sentencia_print()`
+    3. `_expresion()` → delegates to `_suma_resta()` → `_multiplicacion_division()` → `_primario()`
+    4. Operator precedence handled by nesting depth
+  </Step>
+  
+  <Step title="Output">
+    Abstract Syntax Tree (AST)
+  </Step>
+</Steps>
+
+### AST Representation
+
+<Tabs>
+  <Tab title="Tree View">
+    ```
+    Programa
+    ├── DeclaracionVariable
+    │   ├── nombre: 'a'
+    │   └── valor:
+    │       └── NumeroLiteral(5)
+    ├── DeclaracionVariable
+    │   ├── nombre: 'b'
+    │   └── valor:
+    │       └── NumeroLiteral(10)
+    ├── DeclaracionVariable
+    │   ├── nombre: 'c'
+    │   └── valor:
+    │       └── ExpresionBinaria
+    │           ├── operador: '+'
+    │           ├── izquierda: Identificador('a')
+    │           └── derecha:
+    │               └── ExpresionBinaria
+    │                   ├── operador: '*'
+    │                   ├── izquierda: Identificador('b')
+    │                   └── derecha: NumeroLiteral(2)
+    └── SentenciaPrint
+        └── expresion:
+            └── Identificador('c')
+    ```
+  </Tab>
+  
+  <Tab title="Python Objects">
+    ```python
+    Programa(
+      sentencias=[
+        DeclaracionVariable(
+          token_let=Token(LET, 'let', 1, 1),
+          nombre=Token(IDENTIFICADOR, 'a', 1, 5),
+          expresion=NumeroLiteral(
+            token=Token(NUMERO, '5', 1, 9, 5),
+            valor=5
+          )
+        ),
+        
+        DeclaracionVariable(
+          token_let=Token(LET, 'let', 2, 1),
+          nombre=Token(IDENTIFICADOR, 'b', 2, 5),
+          expresion=NumeroLiteral(
+            token=Token(NUMERO, '10', 2, 9, 10),
+            valor=10
+          )
+        ),
+        
+        DeclaracionVariable(
+          token_let=Token(LET, 'let', 3, 1),
+          nombre=Token(IDENTIFICADOR, 'c', 3, 5),
+          expresion=ExpresionBinaria(
+            izquierda=Identificador(
+              token=Token(IDENTIFICADOR, 'a', 3, 9),
+              nombre='a'
+            ),
+            operador=Token(SUMA, '+', 3, 11),
+            derecha=ExpresionBinaria(
+              izquierda=Identificador(
+                token=Token(IDENTIFICADOR, 'b', 3, 13),
+                nombre='b'
+              ),
+              operador=Token(MULTIPLICACION, '*', 3, 15),
+              derecha=NumeroLiteral(
+                token=Token(NUMERO, '2', 3, 17, 2),
+                valor=2
+              )
+            )
+          )
+        ),
+        
+        SentenciaPrint(
+          token_print=Token(PRINT, 'print', 4, 1),
+          expresion=Identificador(
+            token=Token(IDENTIFICADOR, 'c', 4, 7),
+            nombre='c'
+          )
+        )
+      ]
+    )
+    ```
+  </Tab>
+</Tabs>
+
+### Precedence in Action
+
+<Info>
+**Expression:** `a + b * 2`
+
+**Why it parses as** `a + (b * 2)` **and not** `(a + b) * 2`:
+
+1. `_expresion()` calls `_suma_resta()`
+2. `_suma_resta()` calls `_multiplicacion_division()` for left side → gets `a`
+3. Sees `+`, so calls `_multiplicacion_division()` for right side
+4. `_multiplicacion_division()` processes `b * 2` completely (consuming both tokens) before returning
+5. Result: `ExpresionBinaria(+, a, ExpresionBinaria(*, b, 2))`
+
+**Source:** `compfinal.py:802-843`
+</Info>
+
+---
+
+## Phase 3: Semantic Analysis
+
+<Steps>
+  <Step title="Input">
+    AST from Parser
+  </Step>
+  
+  <Step title="Processing">
+    The `AnalizadorSemantico` traverses the AST with these checks:
+    
+    **Variable Tracking:**
+    - Maintains `variables_declaradas` set
+    - On `DeclaracionVariable`: analyze expression first, then add variable
+    - On `Identificador`: verify variable exists in set
+    
+    **Division by Zero:**
+    - On `ExpresionBinaria` with `/` operator
+    - If right side is `NumeroLiteral` with `valor == 0`, report error
+  </Step>
+  
+  <Step title="Output">
+    Boolean success flag + error list
+  </Step>
+</Steps>
+
+### Semantic Trace
+
+<CodeGroup>
+```python Analysis Steps
+# Statement 1: let a = 5;
+1. Analyze expression: NumeroLiteral(5) ✓
+2. Add 'a' to variables_declaradas
+3. variables_declaradas = {'a'}
+
+# Statement 2: let b = 10;
+1. Analyze expression: NumeroLiteral(10) ✓
+2. Add 'b' to variables_declaradas
+3. variables_declaradas = {'a', 'b'}
+
+# Statement 3: let c = a + b * 2;
+1. Analyze expression:
+   - Left side: Identificador('a')
+     → Check: 'a' in variables_declaradas ✓
+   - Right side: ExpresionBinaria(*, ...)
+     - Left: Identificador('b')
+       → Check: 'b' in variables_declaradas ✓
+     - Right: NumeroLiteral(2) ✓
+     - Operator: * (not division) ✓
+2. Add 'c' to variables_declaradas
+3. variables_declaradas = {'a', 'b', 'c'}
+
+# Statement 4: print c;
+1. Analyze expression: Identificador('c')
+   → Check: 'c' in variables_declaradas ✓
+
+# Result: No errors ✓
+```
+
+```python Error Example
+# What if we had: let x = y + 1;
+1. Analyze expression:
+   - Left: Identificador('y')
+     → Check: 'y' in variables_declaradas ✗
+   - Error: "la variable 'y' no ha sido declarada"
+2. Variable 'x' still added (allows continued analysis)
+
+# What if we had: let x = 10 / 0;
+1. Analyze expression:
+   - ExpresionBinaria(/, ...)
+   - Right: NumeroLiteral(0)
+   - Operator: / and right.valor == 0 ✗
+   - Error: "división entre cero detectada"
+```
+</CodeGroup>
+
+<Warning>
+Semantic analysis only catches **literal** division by zero. Runtime divisions like `10 / x` where `x` becomes 0 are not detected.
+</Warning>
+
+**Source:** `compfinal.py:968-1085`
+
+---
+
+## Phase 4: Intermediate Code Generation
+
+<Steps>
+  <Step title="Input">
+    Validated AST
+  </Step>
+  
+  <Step title="Processing">
+    The `GeneradorIR` creates **Three Address Code (TAC)**:
+    
+    - Each operation becomes one TAC instruction
+    - Temporary variables (`t0`, `t1`, ...) store intermediate results
+    - Variables use their original names
+  </Step>
+  
+  <Step title="Output">
+    List of TAC instructions as strings
+  </Step>
+</Steps>
+
+### Generated IR Code
+
+<CodeGroup>
+```python Three Address Code
+a = 5
+b = 10
+t0 = b * 2
+t1 = a + t0
+c = t1
+print c
+```
+
+```python Generation Logic
+# For: let c = a + b * 2;
+
+1. generar_expr(ExpresionBinaria(+, ...))
+   
+2. Process left side:
+   - generar_expr(Identificador('a'))
+   - Returns: "a"
+   
+3. Process right side:
+   - generar_expr(ExpresionBinaria(*, ...))
+     - Left: generar_expr(Identificador('b')) → "b"
+     - Right: generar_expr(NumeroLiteral(2)) → 2
+     - Create temp: t0 = nueva_temp()
+     - Emit: "t0 = b * 2"
+     - Return: "t0"
+   
+4. Create temp: t1 = nueva_temp()
+5. Emit: "t1 = a + t0"
+6. Return: "t1"
+
+7. generar_sentencia(DeclaracionVariable):
+   - Emit: "c = t1"
+```
+</CodeGroup>
+
+### TAC Properties
+
+<CardGroup cols={2}>
+  <Card title="Explicit Ordering" icon="list-ol">
+    Operations occur in sequential order, making control flow obvious.
+  </Card>
+  
+  <Card title="Single Operator" icon="code">
+    Each instruction has at most one operator, simplifying optimization and code generation.
+  </Card>
+  
+  <Card title="Platform Independent" icon="globe">
+    TAC is abstract; not tied to any specific CPU architecture.
+  </Card>
+  
+  <Card title="Optimization Ready" icon="rocket">
+    Easy to apply optimizations like constant folding, dead code elimination, etc.
+  </Card>
+</CardGroup>
+
+**Source:** `compfinal.py:1090-1149`
+
+---
+
+## Phase 5: Interpretation
+
+<Steps>
+  <Step title="Input">
+    AST (same as used for IR generation)
+  </Step>
+  
+  <Step title="Processing">
+    The `Interprete` directly executes the AST:
+    
+    - Maintains `variables` dictionary for runtime values
+    - Recursively evaluates expressions
+    - Outputs print statement results to console
+  </Step>
+  
+  <Step title="Output">
+    Console output from `print` statements
+  </Step>
+</Steps>
+
+### Execution Trace
+
+<CodeGroup>
+```python Step-by-Step Execution
+# Statement 1: let a = 5;
+evaluar(NumeroLiteral(5)) → 5
+variables['a'] = 5
+# variables = {'a': 5}
+
+# Statement 2: let b = 10;
+evaluar(NumeroLiteral(10)) → 10
+variables['b'] = 10
+# variables = {'a': 5, 'b': 10}
+
+# Statement 3: let c = a + b * 2;
+evaluar(ExpresionBinaria(+, ...)):
+  izquierda = evaluar(Identificador('a'))
+    → variables['a'] → 5
+  derecha = evaluar(ExpresionBinaria(*, ...)):
+    izquierda = evaluar(Identificador('b'))
+      → variables['b'] → 10
+    derecha = evaluar(NumeroLiteral(2))
+      → 2
+    operador.lexema == '*'
+      → 10 * 2 → 20
+  operador.lexema == '+'
+    → 5 + 20 → 25
+variables['c'] = 25
+# variables = {'a': 5, 'b': 10, 'c': 25}
+
+# Statement 4: print c;
+evaluar(Identificador('c')) → variables['c'] → 25
+print("     Resultado:")
+print("                → 25")
+```
+
+```python Console Output
+[FASE 5] Ejecución del programa...
+              (Interpretando el AST)
+     Resultado:
+                → 25
+  ✓ Ejecución finalizada
+```
+</CodeGroup>
+
+<Note>
+The interpreter uses **floor division** for `/` operator: `7 / 2` evaluates to `3`, not `3.5`.
+
+**Source:** `compfinal.py:1209`
+</Note>
+
+**Source:** `compfinal.py:1156-1215`
+
+---
+
+## Phase 6: Assembly Code Generation
+
+<Steps>
+  <Step title="Input">
+    AST
+  </Step>
+  
+  <Step title="Processing">
+    The `GeneradorASM` produces x86 assembly for EMU8086:
+    
+    1. **Data section:** Declare all variables as words (`dw`)
+    2. **Code section:** Translate each statement:
+       - Use `AX` register as accumulator
+       - Use stack for nested expressions
+       - Call `print_num` procedure for output
+    3. **Utility procedures:** Include `print_num` for integer output
+  </Step>
+  
+  <Step title="Output">
+    Complete `.asm` file as string
+  </Step>
+</Steps>
+
+### Generated Assembly
+
+<CodeGroup>
+```asm Complete Output
+.model small
+.stack 100h
+
+.data
+a dw 0
+b dw 0
+c dw 0
+msg db 13,10,'$'
+
+.code
+main proc
+mov ax, @data
+mov ds, ax
+
+; let a = 5;
+mov ax, 5
+mov a, ax
+
+; let b = 10;
+mov ax, 10
+mov b, ax
+
+; let c = a + b * 2;
+mov ax, a
+push ax
+mov ax, b
+push ax
+mov ax, 2
+mov bx, ax
+pop ax
+imul bx
+mov bx, ax
+pop ax
+add ax, bx
+mov c, ax
+
+; print c;
+mov ax, c
+call print_num
+mov ah,09h
+lea dx,msg
+int 21h
+
+mov ah,4ch
+int 21h
+main endp
+
+; imprimir numero en AX
+print_num proc
+push ax
+push bx
+push cx
+push dx
+mov cx,0
+mov bx,10
+cmp ax,0
+jne convert
+mov dl,'0'
+mov ah,02h
+int 21h
+jmp done
+convert:
+next_digit:
+xor dx,dx
+div bx
+push dx
+inc cx
+cmp ax,0
+jne next_digit
+print_loop:
+pop dx
+add dl,'0'
+mov ah,02h
+int 21h
+loop print_loop
+done:
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+print_num endp
+
+end main
+```
+
+```asm Expression Detail: a + b * 2
+; Evaluate: a + (b * 2)
+
+; Step 1: Load left operand (a)
+mov ax, a          ; AX = value of a
+push ax            ; Save a on stack
+
+; Step 2: Evaluate right side (b * 2)
+mov ax, b          ; AX = value of b
+push ax            ; Save b on stack
+mov ax, 2          ; AX = 2
+mov bx, ax         ; BX = 2
+pop ax             ; AX = b (restore)
+imul bx            ; AX = b * 2
+
+; Step 3: Perform addition
+mov bx, ax         ; BX = b * 2
+pop ax             ; AX = a (restore)
+add ax, bx         ; AX = a + (b * 2)
+
+; Step 4: Store result
+mov c, ax          ; c = result
+```
+</CodeGroup>
+
+### Assembly Generation Strategy
+
+<Tabs>
+  <Tab title="Stack-Based Evaluation">
+    Binary expressions use stack to preserve left operand:
+    
+    ```
+    1. Evaluate left → result in AX
+    2. Push AX
+    3. Evaluate right → result in AX
+    4. Move AX to BX
+    5. Pop AX (restore left)
+    6. Perform operation (AX op BX → AX)
+    ```
+    
+    This handles nested expressions naturally through recursion.
+  </Tab>
+  
+  <Tab title="Register Usage">
+    - **AX:** Primary accumulator, holds expression results
+    - **BX:** Right operand for binary operations
+    - **CX:** Loop counter in `print_num`
+    - **DX:** DOS interrupt parameter, digit extraction
+    - **DS:** Data segment register
+    - **Stack:** Temporary storage for nested expressions
+  </Tab>
+  
+  <Tab title="DOS Interrupts">
+    Uses INT 21h for I/O:
+    
+    - **AH=02h:** Print single character (DL = ASCII code)
+    - **AH=09h:** Print string (DX = string address, '$' terminated)
+    - **AH=4Ch:** Exit program
+  </Tab>
+  
+  <Tab title="Print Number Logic">
+    Converts integer in AX to decimal string:
+    
+    1. Divide by 10 repeatedly
+    2. Push remainders (digits) onto stack
+    3. Pop and print each digit (in correct order)
+    
+    Handles zero as special case.
+  </Tab>
+</Tabs>
+
+**Source:** `compfinal.py:1221-1390`
+
+---
+
+## Phase Comparison
+
+Here's how the same expression `a + b * 2` is represented at each phase:
+
+| Phase | Representation |
+|-------|----------------|
+| **1. Lexer** | `[ID(a), SUMA, ID(b), MULT, NUM(2)]` |
+| **2. Parser** | `BinExpr(+, ID(a), BinExpr(*, ID(b), Lit(2)))` |
+| **3. Semantic** | ✓ Variables exist, no errors |
+| **4. IR** | `t0 = b * 2` <br/> `t1 = a + t0` |
+| **5. Interpreter** | Evaluates to: `25` |
+| **6. Assembly** | `mov ax, b` <br/> `imul 2` <br/> `add ax, a` (simplified) |
+
+---
+
+## Error Handling Across Phases
+
+<AccordionGroup>
+  <Accordion title="Lexical Errors (Phase 1)">
+    **Detected by:** `Scanner`  
+    **Examples:**
+    - Invalid characters: `let x = 5@;`
+    - Unexpected symbols: `let x = $100;`
+    
+    **Handling:**
+    - Error added to `Scanner.errores`
+    - Token type set to `ERROR`
+    - Scanning continues to find more errors
+    
+    **Output:**
+    ```
+    Error léxico en línea 1, columna 10: carácter inesperado '@'
+    ```
+  </Accordion>
+  
+  <Accordion title="Syntax Errors (Phase 2)">
+    **Detected by:** `Parser`  
+    **Examples:**
+    - Missing semicolon: `let x = 5`
+    - Wrong token order: `= x 5 let;`
+    - Unmatched parentheses: `let x = (5 + 3;`
+    
+    **Handling:**
+    - `ErrorSintaxis` exception raised
+    - Error caught and added to `Parser.errores`
+    - Synchronization to next statement boundary
+    - Parsing continues
+    
+    **Output:**
+    ```
+    Error de sintaxis en línea 1, columna 10: Se esperaba ';' al final de la declaración. Se encontró ''
+    ```
+  </Accordion>
+  
+  <Accordion title="Semantic Errors (Phase 3)">
+    **Detected by:** `AnalizadorSemantico`  
+    **Examples:**
+    - Undeclared variable: `print x;` (without `let x = ...;`)
+    - Division by zero: `let x = 10 / 0;`
+    
+    **Handling:**
+    - Error added to `AnalizadorSemantico.errores`
+    - Analysis continues to find more errors
+    
+    **Output:**
+    ```
+    Error semántico en línea 2, columna 7: la variable 'x' no ha sido declarada
+    ```
+  </Accordion>
+  
+  <Accordion title="No Runtime Errors (Phases 4-6)">
+    Once semantic analysis passes, subsequent phases assume correctness:
+    
+    - **IR Generation:** Always succeeds with valid AST
+    - **Interpretation:** May encounter runtime division by zero (not caught)
+    - **Assembly Generation:** Produces syntactically correct code
+    
+    <Warning>
+    The compiler does not detect:
+    - Runtime division by zero (variable divisor)
+    - Integer overflow
+    - Stack overflow from deep recursion
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Complete Compilation Output
+
+<Tabs>
+  <Tab title="Console Output">
+    ```
+    ═══════════════════════════════════════════════════════════════════════════
+      MINI-COMPILADOR EDUCATIVO
+    ═══════════════════════════════════════════════════════════════════════════
+
+    [FASE 1] Análisis Léxico...
+             (Convirtiendo código en tokens)
+      ✓ Completado: 24 tokens generados
+
+    [FASE 2] Análisis Sintáctico...
+             (Verificando gramática y construyendo AST)
+      ✓ Completado: 4 sentencias parseadas
+
+    [FASE 3] Análisis Semántico...
+             (Verificando que el código tenga sentido)
+      ✓ Completado: 3 variables verificadas
+
+    [FASE 4] Generación de Código Intermedio (IR)
+             (Three Address Code)
+        a = 5
+        b = 10
+        t0 = b * 2
+        t1 = a + t0
+        c = t1
+        print c
+
+    [FASE 5] Ejecución del programa...
+                  (Interpretando el AST)
+         Resultado:
+                    → 25
+      ✓ Ejecución finalizada
+
+    ───────────────────────────────────────────────────────────────────────────
+      ✓ RESULTADO: ¡Compilación exitosa!
+    ```
+  </Tab>
+  
+  <Tab title="Generated Assembly">
+    Available via "Exportar ASM" button in GUI, produces `.asm` file ready for EMU8086.
+  </Tab>
+</Tabs>
+
+---
+
+## Performance Characteristics
+
+<CardGroup cols={2}>
+  <Card title="Time Complexity" icon="clock">
+    - **Lexer:** O(n) where n = character count
+    - **Parser:** O(n) where n = token count
+    - **Semantic:** O(n) where n = AST node count
+    - **IR/ASM:** O(n) where n = AST node count
+    - **Overall:** O(n) linear in input size
+  </Card>
+  
+  <Card title="Space Complexity" icon="memory">
+    - **Token list:** O(n) tokens
+    - **AST:** O(n) nodes
+    - **Symbol table:** O(v) variables
+    - **IR code:** O(n) instructions
+    - **Overall:** O(n) linear in input size
+  </Card>
+</CardGroup>
+
+<Check>
+The compiler completes in milliseconds for typical programs (< 100 lines). GUI shows compilation time in status bar.
+</Check>
+
+---
+
+## Next Steps
+
+<Card title="Try It Yourself" icon="play">
+  Experiment with the compiler by:
+  
+  1. Modifying the example program
+  2. Introducing intentional errors to see error messages
+  3. Viewing the AST and IR output (enable in GUI checkboxes)
+  4. Exporting and running the assembly code in EMU8086
+  
+  See [Getting Started](/getting-started) for installation and usage instructions.
+</Card>

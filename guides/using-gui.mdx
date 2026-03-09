@@ -1,0 +1,552 @@
+---
+title: 'Using the GUI'
+description: 'Use the graphical interface to write, compile, and export programs'
+---
+
+## Overview
+
+The Mini-Compilador Educativo includes a full-featured graphical interface (`InterfazCompilador`) built with Tkinter. The GUI provides a complete development environment with syntax editing, compilation output display, and assembly export capabilities.
+
+## Launching the GUI
+
+Start the GUI by running the compiler without arguments:
+
+```bash
+python compfinal.py
+```
+
+The application window opens immediately with:
+- Source code editor (top panel)
+- Compilation output viewer (bottom panel)
+- Toolbar with compilation controls
+- Status bar with metrics
+
+<Info>
+The GUI is the default mode. Use `--consola` flag only for console mode.
+</Info>
+
+## Interface Tour
+
+### Window Layout
+
+The interface is divided into four main areas:
+
+<Tabs>
+  <Tab title="Header">
+    **Institution and Project Information**
+    
+    Displays:
+    - School: Escuela Superior de Ingeniería Mecánica y Eléctrica - Unidad Culhuacán
+    - Course: Grupo 5CM24
+    - Professor: Veloz Ortiz Efren
+    - Students: Fidel Ruiz Diego y Sánchez Flores Luis Leonardo
+  </Tab>
+  
+  <Tab title="Toolbar">
+    **Compilation Controls and Options**
+    
+    Buttons (left to right):
+    - **Compilar** (Primary blue button) - Compile and execute code
+    - **Cargar ejemplo** - Load sample program
+    - **Limpiar editor** - Clear the code editor
+    - **Limpiar salida** - Clear compilation output
+    - **Tema oscuro/claro** - Toggle dark/light theme
+    - **Exportar ASM** - Export assembly code to file
+    
+    Checkboxes (right side):
+    - **Mostrar tokens** - Display lexical analysis
+    - **Mostrar AST** - Display syntax tree
+    - **Mostrar IR** - Display intermediate representation
+  </Tab>
+  
+  <Tab title="Code Editor">
+    **Source Code Editing Area**
+    
+    Features:
+    - Monospace font (SF Mono, 12pt)
+    - Syntax input area
+    - Undo/redo support
+    - Scrollable for long programs
+    - Light/dark theme support
+  </Tab>
+  
+  <Tab title="Output Panel">
+    **Compilation Results Display**
+    
+    Shows:
+    - All compilation phases
+    - Token tables
+    - Abstract syntax tree
+    - Semantic analysis results
+    - Intermediate code
+    - Program execution output
+    - Color-coded messages (green for success, red for errors)
+  </Tab>
+</Tabs>
+
+### Status Bar
+
+The bottom status bar displays:
+
+<ResponseField name="Left Side" type="compilation status">
+  - **Sin compilación** - No compilation yet
+  - **Estado: Correcto** - Last compilation successful
+  - **Estado: Revisar errores** - Last compilation had errors
+</ResponseField>
+
+<ResponseField name="Middle" type="action status">
+  Current or most recent action:
+  - "Compilando..." during compilation
+  - "Última compilación: OK en 45 ms"
+  - "Tema oscuro activado"
+  - "Ejemplo cargado"
+</ResponseField>
+
+<ResponseField name="Right Side" type="metrics">
+  Real-time code metrics:
+  - **Líneas**: Number of lines in editor
+  - **Caracteres**: Character count
+  
+  Updates automatically as you type.
+</ResponseField>
+
+## Writing and Compiling Programs
+
+<Steps>
+  <Step title="Write your code">
+    Type or paste code into the editor:
+    
+    ```text
+    let x = 10;
+    let y = 20;
+    let sum = x + y;
+    print sum;
+    ```
+    
+    The status bar updates to show line and character counts.
+  </Step>
+  
+  <Step title="Choose output options">
+    Select which compilation phases to display using checkboxes:
+    
+    - ✅ **Mostrar tokens** - See lexical analysis
+    - ✅ **Mostrar AST** - See syntax tree
+    - ✅ **Mostrar IR** - See intermediate code
+    
+    <Note>
+    Disabling options reduces output verbosity but doesn't affect compilation.
+    </Note>
+  </Step>
+  
+  <Step title="Compile">
+    Click the **Compilar** button or press `Ctrl+Enter` (Windows/Linux) / `Cmd+Enter` (macOS).
+    
+    The button disables during compilation and shows "Compilando..." in the status bar.
+  </Step>
+  
+  <Step title="Review results">
+    Scroll through the output panel to see:
+    
+    - Phase-by-phase compilation results
+    - Any errors or warnings (highlighted in red)
+    - Program execution output
+    - Final compilation status
+  </Step>
+</Steps>
+
+## Example Compilation Session
+
+<CodeGroup>
+```text Code Input
+// Calculate rectangle area
+let width = 15;
+let height = 10;
+let area = width * height;
+print area;
+```
+
+```text Output (Tokens Enabled)
+═══════════════════════════════════════════════════════════════
+COMPILACIÓN EXITOSA
+
+═══════════════════════════════════════════════════════════════
+  MINI-COMPILADOR EDUCATIVO
+═══════════════════════════════════════════════════════════════
+
+[FASE 1] Análisis Léxico...
+         (Convirtiendo código en tokens)
+  ✓ Completado: 22 tokens generados
+
+TOKENS (resultado del análisis léxico)
+════════════════════════════════════════════════════════════════
+TIPO                 LEXEMA               LINEA    COLUMNA  VALOR          
+────────────────────────────────────────────────────────────────
+LET                  let                  2        1                       
+IDENTIFICADOR        width                2        5                       
+IGUAL                =                    2        11                      
+NUMERO               15                   2        13       15             
+...
+
+[FASE 2] Análisis Sintáctico...
+  ✓ Completado: 4 sentencias parseadas
+
+[FASE 3] Análisis Semántico...
+  ✓ Completado: 3 variables verificadas
+
+[FASE 4] Generación de Código Intermedio (IR)
+    width = 15
+    height = 10
+    t0 = width * height
+    area = t0
+    print area
+
+[FASE 5] Ejecución del programa...
+     Resultado:
+                → 150
+  ✓ Ejecución finalizada
+
+─────────────────────────────────────────────────────────────────
+  ✓ RESULTADO: ¡Compilación exitosa!
+```
+</CodeGroup>
+
+## Using the Toolbar
+
+### Load Example
+
+Click **Cargar ejemplo** to populate the editor with a sample program:
+
+```text
+// Ejemplo básico
+let a = 5;
+let b = 10;
+let c = a + b * 2;
+print c;
+```
+
+<Tip>
+Use the example as a template to learn the syntax, then modify it for your needs.
+</Tip>
+
+### Clear Functions
+
+<CardGroup cols={2}>
+  <Card title="Limpiar editor" icon="eraser">
+    Removes all text from the code editor. Use when starting a new program from scratch.
+    
+    **Shortcut:** `Ctrl+L` / `Cmd+L`
+  </Card>
+  
+  <Card title="Limpiar salida" icon="broom">
+    Clears the compilation output panel. Useful when output becomes cluttered from multiple compilations.
+    
+    Resets status to "Sin compilación".
+  </Card>
+</CardGroup>
+
+### Theme Toggle
+
+Switch between light and dark themes:
+
+<Tabs>
+  <Tab title="Light Theme">
+    **Default appearance:**
+    - White editor background
+    - Black text
+    - Light gray panels
+    - Blue accents
+    
+    Best for bright environments.
+  </Tab>
+  
+  <Tab title="Dark Theme">
+    **Night-friendly appearance:**
+    - Dark blue/gray editor background
+    - Light gray text
+    - Dark panels
+    - Blue accents
+    
+    Reduces eye strain in low-light conditions.
+    
+    **Shortcut:** `Ctrl+T` / `Cmd+T`
+  </Tab>
+</Tabs>
+
+## Exporting Assembly Code
+
+<Steps>
+  <Step title="Write valid code">
+    Ensure your program compiles without errors. Assembly export requires successful compilation.
+  </Step>
+  
+  <Step title="Click 'Exportar ASM'">
+    The button opens a file save dialog.
+  </Step>
+  
+  <Step title="Choose location">
+    Select where to save the `.asm` file:
+    
+    ```
+    File name: program.asm
+    Save as type: ASM files (*.asm)
+    ```
+  </Step>
+  
+  <Step title="Confirmation">
+    A message box confirms successful export:
+    
+    ```
+    Exportación completada
+    Archivo ASM guardado correctamente.
+    ```
+  </Step>
+</Steps>
+
+### Generated Assembly Format
+
+The compiler generates EMU8086-compatible x86 assembly:
+
+```asm
+.model small
+.stack 100h
+
+.data
+width dw 0
+height dw 0
+area dw 0
+msg db 13,10,'$'
+
+.code
+main proc
+mov ax, @data
+mov ds, ax
+
+mov ax, 15
+mov width, ax
+
+mov ax, 10
+mov height, ax
+
+mov ax, width
+push ax
+mov ax, height
+mov bx, ax
+pop ax
+imul bx
+mov area, ax
+
+mov ax, area
+call print_num
+mov ah,09h
+lea dx,msg
+int 21h
+
+mov ah,4ch
+int 21h
+main endp
+
+; imprimir numero en AX
+print_num proc
+...
+ret
+print_num endp
+
+end main
+```
+
+<Warning>
+If compilation fails (syntax or semantic errors), the export button will show error dialogs instead of saving.
+</Warning>
+
+## Keyboard Shortcuts
+
+The GUI supports several productivity shortcuts:
+
+<ParamField path="Ctrl+Enter / Cmd+Enter" type="shortcut">
+  **Compile program** - Same as clicking "Compilar"
+</ParamField>
+
+<ParamField path="Ctrl+L / Cmd+L" type="shortcut">
+  **Clear editor** - Remove all code from editor
+</ParamField>
+
+<ParamField path="Ctrl+E / Cmd+E" type="shortcut">
+  **Load example** - Insert sample program
+</ParamField>
+
+<ParamField path="Ctrl+T / Cmd+T" type="shortcut">
+  **Toggle theme** - Switch between light and dark modes
+</ParamField>
+
+<Info>
+On macOS, use `Cmd` key. On Windows/Linux, use `Ctrl` key.
+</Info>
+
+## Understanding Output Colors
+
+The output panel uses color coding:
+
+<ResponseField name="Green (✓)" type="success">
+  Successful completion of phases:
+  - "✓ Completado: 15 tokens generados"
+  - "✓ RESULTADO: ¡Compilación exitosa!"
+</ResponseField>
+
+<ResponseField name="Red (✗)" type="error">
+  Errors and failures:
+  - "✗ Error léxico en línea 3..."
+  - "✗ Error semántico..."
+</ResponseField>
+
+<ResponseField name="Blue (bold)" type="heading">
+  Phase headers and section titles:
+  - "[FASE 1] Análisis Léxico..."
+  - "TOKENS (resultado del análisis léxico)"
+</ResponseField>
+
+## Working with Long Programs
+
+The editor supports programs of any length:
+
+<Tabs>
+  <Tab title="Scrolling">
+    Both editor and output panels have:
+    - Vertical scrollbars for long content
+    - Horizontal scrollbars for wide lines
+    - Mouse wheel support
+  </Tab>
+  
+  <Tab title="Line Numbers">
+    The status bar shows line count. Reference errors by line number:
+    
+    ```
+    ✗ Error en línea 15, columna 8: ...
+    ```
+  </Tab>
+  
+  <Tab title="Resizable Panels">
+    Drag the divider between editor and output to resize:
+    - More space for editing
+    - More space for viewing output
+  </Tab>
+</Tabs>
+
+## Error Handling in GUI
+
+The GUI provides clear error feedback:
+
+### Warning Dialogs
+
+**Empty code:**
+```
+Sin código
+Escribe código antes de compilar.
+```
+
+**Export without compilation:**
+```
+Error léxico
+[Error details...]
+```
+
+### Status Updates
+
+Errors update the status bar:
+```
+Última compilación: Con errores en 23 ms
+Estado: Revisar errores
+```
+
+The result indicator turns red.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Save work frequently">
+    The GUI doesn't auto-save. Copy your code to an external editor or file:
+    
+    1. Select all code (`Ctrl+A` / `Cmd+A`)
+    2. Copy (`Ctrl+C` / `Cmd+C`)
+    3. Paste into text editor
+    4. Save file as `.txt` or `.comp`
+  </Accordion>
+  
+  <Accordion title="Use selective output display">
+    For iterative development, disable verbose output:
+    
+    - Uncheck **Mostrar tokens** to hide lexical details
+    - Uncheck **Mostrar AST** to hide syntax tree
+    - Keep errors and execution results visible
+  </Accordion>
+  
+  <Accordion title="Test incrementally">
+    Build programs gradually:
+    
+    1. Write a few lines
+    2. Compile to verify correctness
+    3. Add more functionality
+    4. Compile again
+    
+    This catches errors early.
+  </Accordion>
+  
+  <Accordion title="Use themes for comfort">
+    Switch to dark theme (`Ctrl+T`) when working in dim lighting to reduce eye strain.
+  </Accordion>
+</AccordionGroup>
+
+## Window Controls
+
+### Resizing
+
+Minimum window size: **980 × 640 pixels**  
+Default size: **1120 × 760 pixels**
+
+Resize by dragging window edges. Layout adapts responsively.
+
+### Closing
+
+Close the window to exit:
+- Click the window close button (X)
+- No unsaved work warning (GUI doesn't persist state)
+
+<Warning>
+Closing the window loses all editor content. Save important programs externally first.
+</Warning>
+
+## Compilation Performance
+
+The status bar shows compilation time:
+
+```
+Última compilación: OK en 45 ms
+```
+
+Typical times:
+- Small programs (< 10 lines): 20-50 ms
+- Medium programs (10-50 lines): 50-150 ms
+- Large programs (> 50 lines): 150-500 ms
+
+<Info>
+Times include all phases: lexical, syntactic, semantic analysis, IR generation, interpretation, and assembly generation.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Writing Programs" icon="pen" href="/guides/writing-programs">
+    Learn the language syntax in detail
+  </Card>
+  
+  <Card title="Interpreting Output" icon="code" href="/guides/interpreting-output">
+    Understand each compilation phase's output
+  </Card>
+  
+  <Card title="Using the CLI" icon="terminal" href="/guides/using-cli">
+    Try console mode for quick testing
+  </Card>
+  
+  <Card title="Code Generation" icon="microchip" href="/components/code-generation">
+    Learn about the generated x86 assembly
+  </Card>
+</CardGroup>

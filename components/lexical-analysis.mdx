@@ -1,0 +1,471 @@
+---
+title: 'Lexical Analysis (Scanner)'
+description: 'Character-by-character tokenization of source code'
+---
+
+## Overview
+
+The **Scanner** (also called Lexer or Tokenizer) is the first phase of compilation. It reads the source code as a stream of characters and groups them into meaningful units called **tokens**.
+
+<Info>
+**Analogy:** Like reading a sentence word-by-word instead of letter-by-letter.
+
+"let x = 5;" → ["let", "x", "=", "5", ";"]
+</Info>
+
+## Token Types
+
+The compiler recognizes these token categories:
+
+<CardGroup cols={2}>
+  <Card title="Keywords" icon="key">
+    Reserved words with special meaning:
+    - `let` - Variable declaration
+    - `print` - Output statement
+    - `leo`, `diego` - Reserved (no-op)
+  </Card>
+  
+  <Card title="Literals" icon="hashtag">
+    Direct values:
+    - `NUMERO` - Integer literals (e.g., `42`, `0`, `100`)
+  </Card>
+  
+  <Card title="Identifiers" icon="id-badge">
+    User-defined names:
+    - Variable names (e.g., `x`, `suma`, `contador1`)
+    - Must start with letter or underscore
+    - Can contain letters, digits, underscores
+  </Card>
+  
+  <Card title="Operators" icon="plus">
+    Mathematical operations:
+    - `+` (addition)
+    - `-` (subtraction)
+    - `*` (multiplication)
+    - `/` (division)
+    - `=` (assignment)
+  </Card>
+  
+  <Card title="Delimiters" icon="brackets-curly">
+    Grouping and separation:
+    - `(` `)` - Parentheses
+    - `;` - Statement terminator
+  </Card>
+  
+  <Card title="Special" icon="flag">
+    Control tokens:
+    - `FIN_ARCHIVO` - End of input
+    - `ERROR` - Invalid character
+  </Card>
+</CardGroup>
+
+## Token Structure
+
+Each token carries this information:
+
+```python
+@dataclass
+class Token:
+    tipo: TipoToken      # What kind of token (NUMERO, LET, etc.)
+    lexema: str          # Original text from source code
+    linea: int           # Line number (for error messages)
+    columna: int         # Column number (for error messages)
+    valor: Any = None    # Parsed value (for numbers)
+```
+
+### Example Tokens
+
+<CodeGroup>
+```python Number Token
+Token(
+  tipo=TipoToken.NUMERO,
+  lexema='42',
+  linea=1,
+  columna=10,
+  valor=42  # Converted to integer
+)
+```
+
+```python Keyword Token
+Token(
+  tipo=TipoToken.LET,
+  lexema='let',
+  linea=1,
+  columna=1,
+  valor=None  # Keywords don't have values
+)
+```
+
+```python Identifier Token
+Token(
+  tipo=TipoToken.IDENTIFICADOR,
+  lexema='myVariable',
+  linea=2,
+  columna=5,
+  valor=None
+)
+```
+</CodeGroup>
+
+## Scanning Algorithm
+
+The scanner uses a **single-pass, character-by-character** approach:
+
+<Steps>
+  <Step title="Initialize">
+    - Set position to start of source code
+    - Prepare empty token list
+    - Initialize line/column tracking
+  </Step>
+  
+  <Step title="Main Loop">
+    While not at end of file:
+    1. Mark start of new token
+    2. Read next character
+    3. Classify character
+    4. Accumulate multi-character tokens
+    5. Create token and add to list
+  </Step>
+  
+  <Step title="Finalize">
+    - Add `FIN_ARCHIVO` token
+    - Return complete token list
+  </Step>
+</Steps>
+
+### Character Classification
+
+```python
+def _escanear_token(self):
+    c = self._avanzar()  # Get next character
+    
+    # Whitespace - ignore
+    if c in ' \t\r':
+        pass
+    
+    # Newline - track line numbers
+    elif c == '\n':
+        self.linea += 1
+        self.columna = 1
+    
+    # Single-character operators
+    elif c == '+':
+        self._agregar_token(TipoToken.SUMA)
+    elif c == '-':
+        self._agregar_token(TipoToken.RESTA)
+    # ... etc ...
+    
+    # Numbers - accumulate digits
+    elif c.isdigit():
+        self._numero()
+    
+    # Identifiers - accumulate alphanumerics
+    elif c.isalpha() or c == '_':
+        self._identificador()
+    
+    # Unknown character - error
+    else:
+        self._agregar_token(TipoToken.ERROR)
+```
+
+## Multi-Character Tokens
+
+### Numbers
+
+Accumulate consecutive digits:
+
+```python
+def _numero(self):
+    # Keep reading while digits remain
+    while self._ver_actual().isdigit():
+        self._avanzar()
+    
+    # Extract text and convert to integer
+    lexema = self.fuente[self.inicio:self.actual]
+    valor = int(lexema)
+    
+    # Create token with numeric value
+    self._agregar_token(TipoToken.NUMERO, valor)
+```
+
+**Example:**
+```
+Input: "42abc"
+Scans: '4', '2' (both digits)
+Stops at: 'a' (not a digit)
+Token: NUMERO with lexema="42", valor=42
+Next token starts at: 'a'
+```
+
+### Identifiers and Keywords
+
+Accumulate letters, digits, and underscores:
+
+```python
+def _identificador(self):
+    # Accumulate alphanumerics and underscores
+    while self._ver_actual().isalnum() or self._ver_actual() == '_':
+        self._avanzar()
+    
+    lexema = self.fuente[self.inicio:self.actual]
+    
+    # Check if it's a keyword
+    tipo = self.PALABRAS_RESERVADAS.get(lexema, TipoToken.IDENTIFICADOR)
+    
+    self._agregar_token(tipo)
+```
+
+**Keyword Dictionary:**
+```python
+PALABRAS_RESERVADAS = {
+    'let': TipoToken.LET,
+    'print': TipoToken.PRINT,
+    'leo': TipoToken.LEO,
+    'diego': TipoToken.DIEGO,
+}
+```
+
+**Example:**
+```
+Input: "let x"
+  "let" → Lookup in dictionary → TipoToken.LET
+  "x"   → Not in dictionary → TipoToken.IDENTIFICADOR
+```
+
+## Comment Handling
+
+Double-slash comments are consumed without generating tokens:
+
+```python
+elif c == '/':
+    if self._coincide('/'):
+        # Comment - ignore until end of line
+        while self._ver_actual() != '\n' and not self._fin():
+            self._avanzar()
+    else:
+        # Division operator
+        self._agregar_token(TipoToken.DIVISION)
+```
+
+**Example:**
+```javascript
+let x = 5; // This is a comment
+print x;
+```
+
+Tokens generated:
+```
+LET, IDENTIFICADOR(x), IGUAL, NUMERO(5), PUNTO_COMA,
+PRINT, IDENTIFICADOR(x), PUNTO_COMA
+```
+
+The comment text is completely discarded.
+
+## Error Handling
+
+### Invalid Characters
+
+```python
+else:
+    error = f"Error léxico en línea {self.linea}, columna {self.columna_inicio}: carácter inesperado '{c}'"
+    self.errores.append(error)
+    self._agregar_token(TipoToken.ERROR)
+```
+
+**Example Error:**
+```
+Input: let x = 5@;
+Error: Error léxico en línea 1, columna 10: carácter inesperado '@'
+```
+
+### Error Recovery
+
+<Warning>
+The scanner **continues after errors** to find multiple issues in one pass.
+
+- Invalid characters become `ERROR` tokens
+- Subsequent phases skip `ERROR` tokens
+- All errors collected in `Scanner.errores` list
+</Warning>
+
+## Complete Example
+
+<Tabs>
+  <Tab title="Input Code">
+    ```javascript
+    let sum = 10 + 5;
+    print sum; // Output result
+    ```
+  </Tab>
+  
+  <Tab title="Token Stream">
+    ```python
+    [
+      Token(LET, 'let', línea=1, col=1),
+      Token(IDENTIFICADOR, 'sum', línea=1, col=5),
+      Token(IGUAL, '=', línea=1, col=9),
+      Token(NUMERO, '10', línea=1, col=11, valor=10),
+      Token(SUMA, '+', línea=1, col=14),
+      Token(NUMERO, '5', línea=1, col=16, valor=5),
+      Token(PUNTO_COMA, ';', línea=1, col=17),
+      
+      Token(PRINT, 'print', línea=2, col=1),
+      Token(IDENTIFICADOR, 'sum', línea=2, col=7),
+      Token(PUNTO_COMA, ';', línea=2, col=10),
+      
+      Token(FIN_ARCHIVO, '', línea=2, col=28)
+    ]
+    ```
+  </Tab>
+  
+  <Tab title="Scanner Output">
+    ```
+    [FASE 1] Análisis Léxico...
+             (Convirtiendo código en tokens)
+      ✓ Completado: 11 tokens generados
+    ```
+  </Tab>
+</Tabs>
+
+## Implementation Details
+
+### Position Tracking
+
+```python
+class Scanner:
+    def __init__(self, codigo_fuente: str):
+        self.fuente = codigo_fuente
+        self.inicio = 0    # Start of current token
+        self.actual = 0    # Current character position
+        self.linea = 1     # Current line number
+        self.columna = 1   # Current column number
+        self.columna_inicio = 1  # Column where token starts
+```
+
+**Tracking Example:**
+```
+Code: "let x"
+       ^     inicio=0, actual=0, linea=1, columna=1
+        ^    inicio=0, actual=1, columna=2
+         ^   inicio=0, actual=2, columna=3
+          ^  inicio=0, actual=3, columna=4 → Token created
+            ^ inicio=4, actual=4, columna=5 → Start new token
+```
+
+### Helper Methods
+
+<AccordionGroup>
+  <Accordion title="_avanzar() - Consume character">
+    ```python
+    def _avanzar(self) -> str:
+        c = self.fuente[self.actual]
+        self.actual += 1
+        self.columna += 1
+        return c
+    ```
+    
+    Returns current character and moves position forward.
+  </Accordion>
+  
+  <Accordion title="_ver_actual() - Peek character">
+    ```python
+    def _ver_actual(self) -> str:
+        if self._fin():
+            return '\0'  # Null character = EOF
+        return self.fuente[self.actual]
+    ```
+    
+    Views next character **without** advancing position.
+  </Accordion>
+  
+  <Accordion title="_coincide() - Conditional advance">
+    ```python
+    def _coincide(self, esperado: str) -> bool:
+        if self._fin():
+            return False
+        if self.fuente[self.actual] != esperado:
+            return False
+        self.actual += 1
+        self.columna += 1
+        return True
+    ```
+    
+    Used for multi-character tokens like `//` comments.
+  </Accordion>
+  
+  <Accordion title="_fin() - Check EOF">
+    ```python
+    def _fin(self) -> bool:
+        return self.actual >= len(self.fuente)
+    ```
+    
+    Returns `True` when all characters have been read.
+  </Accordion>
+</AccordionGroup>
+
+## Performance
+
+<CardGroup cols={2}>
+  <Card title="Time Complexity" icon="clock">
+    **O(n)** where n = character count
+    
+    Each character is read exactly once.
+  </Card>
+  
+  <Card title="Space Complexity" icon="memory">
+    **O(t)** where t = token count
+    
+    Stores list of tokens (typically t ≈ n/5).
+  </Card>
+</CardGroup>
+
+## Source Code Reference
+
+<Card title="Implementation" icon="code">
+  **File:** `compfinal.py`
+  
+  **Lines:** 207-491
+  
+  **Key Classes:**
+  - `TipoToken` (enum) - Token type definitions
+  - `Token` (dataclass) - Token data structure
+  - `Scanner` (class) - Main lexer implementation
+  
+  **Main Methods:**
+  - `escanear_tokens()` - Entry point
+  - `_escanear_token()` - Process one token
+  - `_numero()` - Scan numeric literal
+  - `_identificador()` - Scan identifier/keyword
+</Card>
+
+## Common Issues
+
+<Warning>
+**Identifier starting with digit:**
+```
+Input: 1variable
+Result: Token NUMERO(1), Token IDENTIFICADOR(variable)
+```
+Identifiers cannot start with digits. This creates two separate tokens.
+</Warning>
+
+<Warning>
+**Unterminated comment:**
+```
+Input: let x = 5 //
+Result: Tokens up to comment, then FIN_ARCHIVO
+```
+Comments extend to end of line. If line ends, comment ends.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Syntactic Analysis" icon="arrow-right" href="/components/syntactic-analysis">
+    See how tokens are structured into an Abstract Syntax Tree
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/scanner">
+    Detailed API documentation for the Scanner class
+  </Card>
+</CardGroup>

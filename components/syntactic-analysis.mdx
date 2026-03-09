@@ -1,0 +1,616 @@
+---
+title: 'Syntactic Analysis (Parser)'
+description: 'Building an Abstract Syntax Tree from tokens using recursive descent'
+---
+
+## Overview
+
+The **Parser** (also called Syntax Analyzer) is the second phase of compilation. It takes the flat list of tokens from the Scanner and organizes them into a hierarchical **Abstract Syntax Tree (AST)** according to the language grammar.
+
+<Info>
+**Analogy:** Like diagramming a sentence in grammar class.
+
+"The cat eats fish" → 
+```
+  Sentence
+  ├── Subject: "The cat"
+  └── Predicate
+      ├── Verb: "eats"
+      └── Object: "fish"
+```
+</Info>
+
+## Grammar Rules
+
+The parser follows this **context-free grammar**:
+
+```bnf
+program     → statement*
+statement   → declaration | print_stmt
+declaration → "let" IDENTIFIER "=" expression ";"
+print_stmt  → "print" expression ";"
+expression  → addition
+addition    → multiplication (("+ " | "-") multiplication)*
+multiplication → primary (("*" | "/") primary)*
+primary     → NUMBER | IDENTIFIER | "(" expression ")"
+```
+
+<Note>
+**Operator Precedence** is encoded by nesting depth:
+- `primary` (highest precedence) - literals, variables, parentheses
+- `multiplication` - `*` and `/`
+- `addition` (lowest precedence) - `+` and `-`
+
+This ensures `3 + 4 * 2` parses as `3 + (4 * 2)`, not `(3 + 4) * 2`.
+</Note>
+
+## AST Node Types
+
+The parser constructs these node types:
+
+### Expression Nodes
+
+<Tabs>
+  <Tab title="NumeroLiteral">
+    Represents a numeric constant.
+    
+    ```python
+    @dataclass
+    class NumeroLiteral(Expresion):
+        token: Token  # Original token (for position info)
+        valor: int    # The numeric value
+    ```
+    
+    **Example:**
+    ```javascript
+    42  →  NumeroLiteral(token=Token(...), valor=42)
+    ```
+  </Tab>
+  
+  <Tab title="Identificador">
+    Represents a variable reference.
+    
+    ```python
+    @dataclass
+    class Identificador(Expresion):
+        token: Token  # Original token
+        nombre: str   # Variable name
+    ```
+    
+    **Example:**
+    ```javascript
+    x  →  Identificador(token=Token(...), nombre='x')
+    ```
+  </Tab>
+  
+  <Tab title="ExpresionBinaria">
+    Represents an operation between two expressions.
+    
+    ```python
+    @dataclass
+    class ExpresionBinaria(Expresion):
+        izquierda: Expresion  # Left operand
+        operador: Token       # +, -, *, /
+        derecha: Expresion    # Right operand
+    ```
+    
+    **Example:**
+    ```javascript
+    5 + 3  →  ExpresionBinaria(
+                izquierda=NumeroLiteral(5),
+                operador=Token(SUMA, '+'),
+                derecha=NumeroLiteral(3)
+              )
+    ```
+  </Tab>
+  
+  <Tab title="ExpresionAgrupada">
+    Represents a parenthesized expression.
+    
+    ```python
+    @dataclass
+    class ExpresionAgrupada(Expresion):
+        expresion: Expresion  # The inner expression
+    ```
+    
+    **Example:**
+    ```javascript
+    (5 + 3)  →  ExpresionAgrupada(
+                  expresion=ExpresionBinaria(...)
+                )
+    ```
+  </Tab>
+</Tabs>
+
+### Statement Nodes
+
+<Tabs>
+  <Tab title="DeclaracionVariable">
+    Variable declaration statement.
+    
+    ```python
+    @dataclass
+    class DeclaracionVariable(Sentencia):
+        token_let: Token      # The 'let' keyword
+        nombre: Token         # Variable name token
+        expresion: Expresion  # Initializer expression
+    ```
+    
+    **Example:**
+    ```javascript
+    let x = 10;  →  DeclaracionVariable(
+                      token_let=Token(LET, 'let'),
+                      nombre=Token(IDENTIFICADOR, 'x'),
+                      expresion=NumeroLiteral(10)
+                    )
+    ```
+  </Tab>
+  
+  <Tab title="SentenciaPrint">
+    Print statement.
+    
+    ```python
+    @dataclass
+    class SentenciaPrint(Sentencia):
+        token_print: Token    # The 'print' keyword
+        expresion: Expresion  # Expression to print
+    ```
+    
+    **Example:**
+    ```javascript
+    print x;  →  SentenciaPrint(
+                   token_print=Token(PRINT, 'print'),
+                   expresion=Identificador('x')
+                 )
+    ```
+  </Tab>
+</Tabs>
+
+### Program Node
+
+```python
+@dataclass
+class Programa:
+    sentencias: List[Sentencia]  # All statements in the program
+```
+
+The **root of the AST** - contains all statements.
+
+## Parsing Algorithm
+
+The parser uses **Recursive Descent Parsing**:
+
+<Steps>
+  <Step title="Initialize">
+    - Store token list
+    - Set current position to 0
+    - Initialize error list
+  </Step>
+  
+  <Step title="Parse Program">
+    ```python
+    def parsear(self) -> Programa:
+        sentencias = []
+        while not self._fin():
+            sentencia = self._sentencia()
+            if sentencia:
+                sentencias.append(sentencia)
+        return Programa(sentencias)
+    ```
+  </Step>
+  
+  <Step title="Parse Statements">
+    Dispatch based on lookahead token:
+    
+    ```python
+    def _sentencia(self) -> Sentencia:
+        if self._coincide(TipoToken.LET):
+            return self._declaracion_variable()
+        if self._coincide(TipoToken.PRINT):
+            return self._sentencia_print()
+        raise error("Expected 'let' or 'print'")
+    ```
+  </Step>
+  
+  <Step title="Parse Expressions">
+    Follow precedence levels recursively:
+    
+    ```python
+    _expresion() → _suma_resta() → _multiplicacion_division() → _primario()
+    ```
+  </Step>
+</Steps>
+
+## Parsing Example
+
+Let's trace how `let x = 5 + 3 * 2;` is parsed:
+
+<Steps>
+  <Step title="Statement Recognition">
+    ```python
+    # Current token: LET
+    _sentencia():
+      coincide(LET) → True
+      return _declaracion_variable()
+    ```
+  </Step>
+  
+  <Step title="Variable Declaration">
+    ```python
+    _declaracion_variable():
+      token_let = Token(LET, 'let')  # Already consumed
+      nombre = consumir(IDENTIFICADOR)  # 'x'
+      consumir(IGUAL)  # '='
+      expresion = _expresion()  # Parse right side
+      consumir(PUNTO_COMA)  # ';'
+      return DeclaracionVariable(token_let, nombre, expresion)
+    ```
+  </Step>
+  
+  <Step title="Expression Parsing">
+    Parse `5 + 3 * 2` with correct precedence:
+    
+    ```python
+    _expresion() → _suma_resta():
+      # First, get left side
+      expr = _multiplicacion_division()  # Returns NumeroLiteral(5)
+      
+      # See '+', so continue
+      while coincide(SUMA, RESTA):
+        operador = Token(SUMA, '+')
+        derecha = _multiplicacion_division()  # Parse right side
+        expr = ExpresionBinaria(expr, operador, derecha)
+      
+      return expr
+    ```
+  </Step>
+  
+  <Step title="Right Side (3 * 2)">
+    ```python
+    _multiplicacion_division():
+      # Get 3
+      expr = _primario()  # NumeroLiteral(3)
+      
+      # See '*', so continue
+      while coincide(MULTIPLICACION, DIVISION):
+        operador = Token(MULTIPLICACION, '*')
+        derecha = _primario()  # NumeroLiteral(2)
+        expr = ExpresionBinaria(expr, operador, derecha)
+      
+      return ExpresionBinaria(
+        izquierda=NumeroLiteral(3),
+        operador=Token(MULT, '*'),
+        derecha=NumeroLiteral(2)
+      )
+    ```
+  </Step>
+  
+  <Step title="Final AST">
+    ```python
+    DeclaracionVariable(
+      token_let=Token(LET, 'let'),
+      nombre=Token(IDENTIFICADOR, 'x'),
+      expresion=ExpresionBinaria(
+        izquierda=NumeroLiteral(5),
+        operador=Token(SUMA, '+'),
+        derecha=ExpresionBinaria(
+          izquierda=NumeroLiteral(3),
+          operador=Token(MULTIPLICACION, '*'),
+          derecha=NumeroLiteral(2)
+        )
+      )
+    )
+    ```
+    
+    This correctly represents: `5 + (3 * 2)`
+  </Step>
+</Steps>
+
+## Precedence Visualization
+
+<Tabs>
+  <Tab title="Correct Precedence">
+    **Input:** `a + b * c`
+    
+    **AST:**
+    ```
+          +
+         / \
+        a   *
+           / \
+          b   c
+    ```
+    
+    **Evaluation:** `a + (b * c)`
+    
+    **Why:** `_suma_resta()` calls `_multiplicacion_division()` for right side, which consumes both `b` and `c` before returning.
+  </Tab>
+  
+  <Tab title="Parentheses Override">
+    **Input:** `(a + b) * c`
+    
+    **AST:**
+    ```
+          *
+         / \
+        +   c
+       / \
+      a   b
+    ```
+    
+    **Evaluation:** `(a + b) * c`
+    
+    **Why:** `_primario()` recognizes `(` and recursively calls `_expresion()`, creating the addition node first.
+  </Tab>
+  
+  <Tab title="Same Precedence">
+    **Input:** `a - b + c`
+    
+    **AST:**
+    ```
+          +
+         / \
+        -   c
+       / \
+      a   b
+    ```
+    
+    **Evaluation:** `(a - b) + c`
+    
+    **Why:** `_suma_resta()` loops left-to-right, building left-associative tree.
+  </Tab>
+</Tabs>
+
+## Error Handling
+
+### Syntax Errors
+
+The parser reports specific, helpful error messages:
+
+```python
+def _error(self, token: Token, mensaje: str) -> ErrorSintaxis:
+    msg = f"Error de sintaxis en línea {token.linea}, columna {token.columna}: " \
+          f"{mensaje}. Se encontró '{token.lexema}'"
+    return ErrorSintaxis(msg)
+```
+
+**Example Errors:**
+
+<AccordionGroup>
+  <Accordion title="Missing Semicolon">
+    **Input:** `let x = 5`
+    
+    **Error:**
+    ```
+    Error de sintaxis en línea 1, columna 10: Se esperaba ';' al final de la declaración. Se encontró ''
+    ```
+  </Accordion>
+  
+  <Accordion title="Missing Variable Name">
+    **Input:** `let = 5;`
+    
+    **Error:**
+    ```
+    Error de sintaxis en línea 1, columna 5: Se esperaba nombre de variable después de 'let'. Se encontró '='
+    ```
+  </Accordion>
+  
+  <Accordion title="Unmatched Parenthesis">
+    **Input:** `let x = (5 + 3;`
+    
+    **Error:**
+    ```
+    Error de sintaxis en línea 1, columna 14: Se esperaba ')' después de la expresión. Se encontró ';'
+    ```
+  </Accordion>
+  
+  <Accordion title="Unexpected Token">
+    **Input:** `+ x = 5;`
+    
+    **Error:**
+    ```
+    Error de sintaxis en línea 1, columna 1: Se esperaba 'let' o 'print'. Se encontró '+'
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Error Recovery (Panic Mode)
+
+The parser **continues after errors** to find multiple issues:
+
+```python
+def _sincronizar(self):
+    """Find next safe point to resume parsing"""
+    self._avanzar()
+    
+    while not self._fin():
+        # Previous token was semicolon - safe to continue
+        if self._anterior().tipo == TipoToken.PUNTO_COMA:
+            return
+        
+        # Current token starts a statement
+        if self._ver_actual().tipo in (TipoToken.LET, TipoToken.PRINT):
+            return
+        
+        self._avanzar()
+```
+
+**Example:**
+```javascript
+let x = ;     // Error: missing expression
+let y = 5;    // Still parsed correctly
+print z       // Error: missing semicolon
+```
+
+**Output:**
+```
+Error de sintaxis en línea 1, columna 9: Se esperaba una expresión. Se encontró ';'
+Error de sintaxis en línea 3, columna 8: Se esperaba ';' al final de print. Se encontró ''
+✓ Completado: 1 sentencia parseada
+```
+
+## Helper Methods
+
+<Tabs>
+  <Tab title="_coincide()">
+    Check if current token matches any of the given types, and consume if so:
+    
+    ```python
+    def _coincide(self, *tipos: TipoToken) -> bool:
+        for tipo in tipos:
+            if self._verificar(tipo):
+                self._avanzar()
+                return True
+        return False
+    ```
+    
+    **Usage:**
+    ```python
+    if self._coincide(TipoToken.SUMA, TipoToken.RESTA):
+        # Current token is + or -, and has been consumed
+    ```
+  </Tab>
+  
+  <Tab title="_consumir()">
+    Require a specific token type, or raise error:
+    
+    ```python
+    def _consumir(self, tipo: TipoToken, mensaje: str) -> Token:
+        if self._verificar(tipo):
+            return self._avanzar()
+        raise self._error(self._ver_actual(), mensaje)
+    ```
+    
+    **Usage:**
+    ```python
+    self._consumir(
+        TipoToken.PUNTO_COMA,
+        "Se esperaba ';' al final de la declaración"
+    )
+    ```
+  </Tab>
+  
+  <Tab title="_verificar()">
+    Check token type **without** consuming:
+    
+    ```python
+    def _verificar(self, tipo: TipoToken) -> bool:
+        if self._fin():
+            return False
+        return self._ver_actual().tipo == tipo
+    ```
+    
+    Used for lookahead in decision-making.
+  </Tab>
+  
+  <Tab title="_avanzar()">
+    Move to next token:
+    
+    ```python
+    def _avanzar(self) -> Token:
+        if not self._fin():
+            self.actual += 1
+        return self._anterior()
+    ```
+    
+    Returns the token that was **just consumed**.
+  </Tab>
+</Tabs>
+
+## Complete Parsing Example
+
+<Tabs>
+  <Tab title="Input Code">
+    ```javascript
+    let a = 5;
+    let b = a * 2 + 3;
+    print b;
+    ```
+  </Tab>
+  
+  <Tab title="Token Stream">
+    ```python
+    [LET, ID(a), =, NUM(5), ;,
+     LET, ID(b), =, ID(a), *, NUM(2), +, NUM(3), ;,
+     PRINT, ID(b), ;,
+     EOF]
+    ```
+  </Tab>
+  
+  <Tab title="AST (Tree View)">
+    ```
+    Programa
+    ├── DeclaracionVariable
+    │   ├── nombre: 'a'
+    │   └── expresion: NumeroLiteral(5)
+    ├── DeclaracionVariable
+    │   ├── nombre: 'b'
+    │   └── expresion:
+    │       └── ExpresionBinaria(+)
+    │           ├── izquierda:
+    │           │   └── ExpresionBinaria(*)
+    │           │       ├── izquierda: Identificador('a')
+    │           │       └── derecha: NumeroLiteral(2)
+    │           └── derecha: NumeroLiteral(3)
+    └── SentenciaPrint
+        └── expresion: Identificador('b')
+    ```
+  </Tab>
+  
+  <Tab title="Parser Output">
+    ```
+    [FASE 2] Análisis Sintáctico...
+             (Verificando gramática y construyendo AST)
+      ✓ Completado: 3 sentencias parseadas
+    ```
+  </Tab>
+</Tabs>
+
+## Performance
+
+<CardGroup cols={2}>
+  <Card title="Time Complexity" icon="clock">
+    **O(n)** where n = token count
+    
+    Each token is visited exactly once.
+  </Card>
+  
+  <Card title="Space Complexity" icon="memory">
+    **O(d)** where d = max nesting depth
+    
+    Recursion stack depth = max expression nesting.
+  </Card>
+</CardGroup>
+
+## Source Code Reference
+
+<Card title="Implementation" icon="code">
+  **File:** `compfinal.py`
+  
+  **Lines:** 494-950
+  
+  **Key Classes:**
+  - `Expresion`, `Sentencia`, `Programa` - AST node types
+  - `NumeroLiteral`, `Identificador`, `ExpresionBinaria`, `ExpresionAgrupada` - Expression nodes
+  - `DeclaracionVariable`, `SentenciaPrint` - Statement nodes
+  - `Parser` - Main parser implementation
+  
+  **Main Methods:**
+  - `parsear()` - Entry point, returns `Programa`
+  - `_sentencia()` - Parse one statement
+  - `_declaracion_variable()` - Parse `let` statement
+  - `_sentencia_print()` - Parse `print` statement
+  - `_expresion()` → `_suma_resta()` → `_multiplicacion_division()` → `_primario()` - Expression parsing with precedence
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Semantic Analysis" icon="arrow-right" href="/components/semantic-analysis">
+    See how the AST is validated for logical correctness
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/parser">
+    Detailed API documentation for the Parser class
+  </Card>
+</CardGroup>

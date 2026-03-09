@@ -1,0 +1,767 @@
+---
+title: 'Interpreting Output'
+description: 'Understand the compiler output from each compilation phase'
+---
+
+## Overview
+
+The Mini-Compilador Educativo performs six distinct phases of compilation, each producing specific output. Understanding this output helps you learn how compilers work and debug your programs effectively.
+
+## Compilation Phases
+
+The compiler processes code through these phases:
+
+<Steps>
+  <Step title="Phase 1: Lexical Analysis" icon="scan">
+    Converts source code into tokens (lexemes)
+  </Step>
+  <Step title="Phase 2: Syntax Analysis" icon="tree">
+    Builds Abstract Syntax Tree (AST) from tokens
+  </Step>
+  <Step title="Phase 3: Semantic Analysis" icon="check">
+    Validates program meaning and variable usage
+  </Step>
+  <Step title="Phase 4: Intermediate Representation" icon="layer-group">
+    Generates three-address code (TAC)
+  </Step>
+  <Step title="Phase 5: Interpretation" icon="play">
+    Executes the program and displays results
+  </Step>
+  <Step title="Phase 6: Code Generation" icon="microchip">
+    Produces x86 assembly code
+  </Step>
+</Steps>
+
+## Phase 1: Lexical Analysis
+
+### Purpose
+
+The lexer (scanner) reads source code character-by-character and groups characters into **tokens** - the basic building blocks of the language.
+
+### Output Format
+
+When "Mostrar tokens" is enabled, you see a table:
+
+```
+TOKENS (resultado del análisis léxico)
+══════════════════════════════════════════════════════════════════════════════════════
+TIPO                 LEXEMA               LINEA    COLUMNA  VALOR          
+──────────────────────────────────────────────────────────────────────────────────────
+LET                  let                  1        1                       
+IDENTIFICADOR        x                    1        5                       
+IGUAL                =                    1        7                       
+NUMERO               10                   1        9        10             
+PUNTO_COMA           ;                    1        11                      
+FIN_ARCHIVO                               1        12                      
+══════════════════════════════════════════════════════════════════════════════════════
+```
+
+### Token Components
+
+<ResponseField name="TIPO" type="token type">
+  The category of the token:
+  - `LET`, `PRINT` - Keywords
+  - `IDENTIFICADOR` - Variable names
+  - `NUMERO` - Numeric literals
+  - `SUMA`, `RESTA`, `MULTIPLICACION`, `DIVISION` - Operators
+  - `IGUAL` - Assignment
+  - `PAREN_IZQ`, `PAREN_DER` - Parentheses
+  - `PUNTO_COMA` - Statement terminator
+  - `FIN_ARCHIVO` - End marker
+</ResponseField>
+
+<ResponseField name="LEXEMA" type="original text">
+  The actual characters from the source code.
+  
+  Example: `let` → lexema "let"
+</ResponseField>
+
+<ResponseField name="LINEA" type="line number">
+  Which line of code the token appears on (1-indexed).
+</ResponseField>
+
+<ResponseField name="COLUMNA" type="column position">
+  Character position within the line (1-indexed).
+</ResponseField>
+
+<ResponseField name="VALOR" type="numeric value">
+  For `NUMERO` tokens only: the integer value.
+  
+  Example: lexema "42" → valor 42
+</ResponseField>
+
+### Example Analysis
+
+<CodeGroup>
+```text Source Code
+let sum = 10 + 5;
+print sum;
+```
+
+```text Token Stream
+LET          'let'       line 1, col 1
+IDENTIFICADOR 'sum'      line 1, col 5
+IGUAL        '='         line 1, col 9
+NUMERO       '10'        line 1, col 11  (value: 10)
+SUMA         '+'         line 1, col 14
+NUMERO       '5'         line 1, col 16  (value: 5)
+PUNTO_COMA   ';'         line 1, col 17
+PRINT        'print'     line 2, col 1
+IDENTIFICADOR 'sum'      line 2, col 7
+PUNTO_COMA   ';'         line 2, col 10
+FIN_ARCHIVO              line 2, col 11
+```
+</CodeGroup>
+
+### Common Lexical Errors
+
+<AccordionGroup>
+  <Accordion title="Invalid Character">
+    ```
+    ✗ Error léxico en línea 1, columna 9: carácter inesperado '@'
+    ```
+    
+    **Cause:** Character not recognized by the language (e.g., `@`, `#`, `$`)
+    
+    **Solution:** Remove or replace with valid characters
+  </Accordion>
+  
+  <Accordion title="Unexpected Symbol">
+    ```
+    ✗ Error léxico en línea 3, columna 15: carácter inesperado '\u2019'
+    ```
+    
+    **Cause:** Unicode character (smart quotes, special dashes)
+    
+    **Solution:** Use ASCII equivalents (`'` instead of `'`, `-` instead of `—`)
+  </Accordion>
+</AccordionGroup>
+
+## Phase 2: Syntax Analysis
+
+### Purpose
+
+The parser verifies that tokens appear in valid grammatical order and builds an **Abstract Syntax Tree (AST)** representing the program's structure.
+
+### Output Format
+
+When "Mostrar AST" is enabled, you see a tree diagram:
+
+```
+ÁRBOL DE SINTAXIS ABSTRACTA (AST)
+═══════════════════════════════════════════════════════════════
+Programa
+├── DeclaracionVariable
+│   ├── nombre: 'sum'
+│   └── valor:
+│       └── ExpresionBinaria
+│           ├── operador: '+'
+│           ├── izquierda:
+│           │   └── NumeroLiteral(10)
+│           └── derecha:
+│               └── NumeroLiteral(5)
+└── SentenciaPrint
+    └── expresion:
+        └── Identificador('sum')
+═══════════════════════════════════════════════════════════════
+```
+
+### AST Node Types
+
+<Tabs>
+  <Tab title="Statements">
+    **DeclaracionVariable**
+    ```
+    DeclaracionVariable
+    ├── nombre: 'x'
+    └── valor: [expression]
+    ```
+    Represents: `let x = expression;`
+    
+    **SentenciaPrint**
+    ```
+    SentenciaPrint
+    └── expresion: [expression]
+    ```
+    Represents: `print expression;`
+  </Tab>
+  
+  <Tab title="Expressions">
+    **NumeroLiteral**
+    ```
+    NumeroLiteral(42)
+    ```
+    Represents: A number constant
+    
+    **Identificador**
+    ```
+    Identificador('varName')
+    ```
+    Represents: Variable reference
+    
+    **ExpresionBinaria**
+    ```
+    ExpresionBinaria
+    ├── operador: '+'
+    ├── izquierda: [expr]
+    └── derecha: [expr]
+    ```
+    Represents: Binary operation
+    
+    **ExpresionAgrupada**
+    ```
+    ExpresionAgrupada
+    └── expresion: [expr]
+    ```
+    Represents: Parenthesized expression
+  </Tab>
+</Tabs>
+
+### Understanding Tree Structure
+
+<CodeGroup>
+```text Source
+let result = (10 + 5) * 2;
+```
+
+```text AST
+Programa
+└── DeclaracionVariable
+    ├── nombre: 'result'
+    └── valor:
+        └── ExpresionBinaria
+            ├── operador: '*'
+            ├── izquierda:
+            │   └── ExpresionAgrupada
+            │       └── ExpresionBinaria
+            │           ├── operador: '+'
+            │           ├── izquierda:
+            │           │   └── NumeroLiteral(10)
+            │           └── derecha:
+            │               └── NumeroLiteral(5)
+            └── derecha:
+                └── NumeroLiteral(2)
+```
+</CodeGroup>
+
+<Note>
+The tree structure reflects operator precedence. Deeper nodes evaluate first.
+</Note>
+
+### Common Syntax Errors
+
+<AccordionGroup>
+  <Accordion title="Missing Semicolon">
+    ```
+    ✗ Error de sintaxis en línea 1, columna 11: Se esperaba ';' al final de la declaración. Se encontró 'let'
+    ```
+    
+    **Cause:** Statement not terminated with semicolon
+    ```text
+    let x = 10  // Missing ;
+    let y = 20;
+    ```
+    
+    **Solution:** Add semicolon after every statement
+  </Accordion>
+  
+  <Accordion title="Missing Equals Sign">
+    ```
+    ✗ Error de sintaxis en línea 2, columna 7: Se esperaba '=' después del nombre de variable. Se encontró '10'
+    ```
+    
+    **Cause:** Assignment operator missing
+    ```text
+    let x 10;
+    ```
+    
+    **Solution:** Use `=` for assignment: `let x = 10;`
+  </Accordion>
+  
+  <Accordion title="Unexpected Token">
+    ```
+    ✗ Error de sintaxis en línea 1, columna 1: Se esperaba 'let' o 'print'. Se encontró 'x'
+    ```
+    
+    **Cause:** Statement doesn't start with keyword
+    ```text
+    x = 10;  // Missing 'let'
+    ```
+    
+    **Solution:** Start with `let` or `print`
+  </Accordion>
+  
+  <Accordion title="Unmatched Parenthesis">
+    ```
+    ✗ Error de sintaxis en línea 1, columna 15: Se esperaba ')' después de la expresión. Se encontró ';'
+    ```
+    
+    **Cause:** Opening parenthesis without closing
+    ```text
+    let x = (10 + 5;
+    ```
+    
+    **Solution:** Balance parentheses: `let x = (10 + 5);`
+  </Accordion>
+</AccordionGroup>
+
+## Phase 3: Semantic Analysis
+
+### Purpose
+
+The semantic analyzer verifies that the program is **logically valid**, even if syntactically correct.
+
+### Checks Performed
+
+<CardGroup cols={2}>
+  <Card title="Variable Declaration" icon="check-circle">
+    Ensures variables are declared before use.
+    
+    Tracks all `let` declarations and verifies identifiers exist.
+  </Card>
+  
+  <Card title="Division by Zero" icon="divide">
+    Detects division by zero with literal values.
+    
+    Example: `let x = 10 / 0;` is caught.
+  </Card>
+  
+  <Card title="Redeclaration" icon="triangle-exclamation">
+    Warns if a variable is declared twice.
+    
+    Allows redeclaration but issues warning.
+  </Card>
+</CardGroup>
+
+### Output Format
+
+**Success:**
+```
+[FASE 3] Análisis Semántico...
+         (Verificando que el código tenga sentido)
+  ✓ Completado: 3 variables verificadas
+```
+
+**With Errors:**
+```
+[FASE 3] Análisis Semántico...
+         (Verificando que el código tenga sentido)
+  ✗ Error semántico en línea 2, columna 13: la variable 'x' no ha sido declarada
+  ✗ Error semántico en línea 3, columna 15: división entre cero detectada
+```
+
+### Common Semantic Errors
+
+<AccordionGroup>
+  <Accordion title="Undeclared Variable">
+    ```
+    ✗ Error semántico en línea 2, columna 9: la variable 'y' no ha sido declarada
+    ```
+    
+    **Example:**
+    ```text
+    let x = 10;
+    let sum = x + y;  // 'y' not declared
+    ```
+    
+    **Solution:** Declare before use:
+    ```text
+    let x = 10;
+    let y = 5;
+    let sum = x + y;
+    ```
+  </Accordion>
+  
+  <Accordion title="Division by Zero">
+    ```
+    ✗ Error semántico en línea 1, columna 13: división entre cero detectada
+    ```
+    
+    **Example:**
+    ```text
+    let invalid = 10 / 0;
+    ```
+    
+    **Solution:** Use non-zero divisor
+    
+    <Note>
+    Only literal zeros are detected. `let x = 0; let y = 10 / x;` won't be caught at compile time.
+    </Note>
+  </Accordion>
+  
+  <Accordion title="Variable Redeclaration (Warning)">
+    ```
+    Advertencia en línea 3, columna 5: la variable 'x' ya fue declarada anteriormente
+    ```
+    
+    **Example:**
+    ```text
+    let x = 10;
+    let y = 20;
+    let x = 30;  // Redeclaration
+    ```
+    
+    **Impact:** Not an error, but may indicate a mistake. Second declaration overwrites the first.
+  </Accordion>
+  
+  <Accordion title="Self-Reference">
+    ```
+    ✗ Error semántico en línea 1, columna 13: la variable 'x' no ha sido declarada
+    ```
+    
+    **Example:**
+    ```text
+    let x = x + 1;  // x doesn't exist yet
+    ```
+    
+    **Solution:** Declare with initial value first:
+    ```text
+    let x = 0;
+    let x = x + 1;  // Now valid (with redeclaration warning)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Phase 4: Intermediate Representation
+
+### Purpose
+
+Converts the AST into **Three-Address Code (TAC)**, a low-level representation where each instruction has at most three operands.
+
+### Output Format
+
+When "Mostrar IR" is enabled:
+
+```
+[FASE 4] Generación de Código Intermedio (IR)
+         (Three Address Code)
+    a = 5
+    b = 10
+    t0 = b * 2
+    t1 = a + t0
+    c = t1
+    print c
+```
+
+### Instruction Types
+
+<Tabs>
+  <Tab title="Assignment">
+    ```
+    variable = value
+    ```
+    
+    **Example:**
+    ```
+    x = 10
+    y = x
+    ```
+    
+    Direct assignment from constant or variable.
+  </Tab>
+  
+  <Tab title="Binary Operation">
+    ```
+    temp = operand1 operator operand2
+    ```
+    
+    **Example:**
+    ```
+    t0 = x + y
+    t1 = t0 * 2
+    ```
+    
+    Results stored in temporary variables (`t0`, `t1`, ...).
+  </Tab>
+  
+  <Tab title="Print">
+    ```
+    print value
+    ```
+    
+    **Example:**
+    ```
+    print x
+    print t0
+    ```
+    
+    Outputs value of variable or temporary.
+  </Tab>
+</Tabs>
+
+### Example Transformation
+
+<CodeGroup>
+```text Source Code
+let x = 5;
+let y = 10;
+let result = x + y * 2;
+print result;
+```
+
+```text Intermediate Code
+x = 5
+y = 10
+t0 = y * 2
+t1 = x + t0
+result = t1
+print result
+```
+</CodeGroup>
+
+<Info>
+Temporary variables (`t0`, `t1`, ...) represent intermediate computation results. They're generated automatically and don't appear in the source code.
+</Info>
+
+### Understanding TAC
+
+Three-address code makes operator precedence explicit:
+
+```text
+Expression: (a + b) * (c - d)
+
+TAC:
+t0 = a + b
+t1 = c - d
+t2 = t0 * t1
+```
+
+Each operation is broken down into simple steps.
+
+## Phase 5: Program Execution
+
+### Purpose
+
+The interpreter walks the AST and **executes** the program, displaying results.
+
+### Output Format
+
+```
+[FASE 5] Ejecución del programa...
+              (Interpretando el AST)
+     Resultado:
+                → 25
+  ✓ Ejecución finalizada
+```
+
+### How It Works
+
+<Steps>
+  <Step title="Process Declarations">
+    `let` statements evaluate the expression and store the result:
+    
+    ```text
+    let x = 10 + 5;  // Evaluates to 15, stores in x
+    ```
+  </Step>
+  
+  <Step title="Process Print Statements">
+    `print` statements evaluate and display:
+    
+    ```text
+    print x;  // Looks up x (15), displays "→ 15"
+    ```
+  </Step>
+  
+  <Step title="Complete Execution">
+    After all statements, shows completion message.
+  </Step>
+</Steps>
+
+### Multiple Print Outputs
+
+```text
+let a = 5;
+print a;
+let b = 10;
+print b;
+print a + b;
+```
+
+**Output:**
+```
+[FASE 5] Ejecución del programa...
+     Resultado:
+                → 5
+     Resultado:
+                → 10
+     Resultado:
+                → 15
+  ✓ Ejecución finalizada
+```
+
+## Phase 6: Assembly Generation
+
+### Purpose
+
+Produces **x86 assembly code** compatible with EMU8086 assembler.
+
+<Note>
+Assembly output is not displayed in the console/GUI output panel. Use **Exportar ASM** in the GUI to save to a file.
+</Note>
+
+### Assembly Structure
+
+<Tabs>
+  <Tab title="Data Section">
+    ```asm
+    .data
+    x dw 0
+    y dw 0
+    result dw 0
+    msg db 13,10,'$'
+    ```
+    
+    Declares variables as 16-bit words (`dw`) and newline message.
+  </Tab>
+  
+  <Tab title="Code Section">
+    ```asm
+    .code
+    main proc
+    mov ax, @data
+    mov ds, ax
+    
+    ; Your program instructions here
+    
+    mov ah,4ch
+    int 21h
+    main endp
+    ```
+    
+    Main procedure with DOS initialization and exit.
+  </Tab>
+  
+  <Tab title="Print Routine">
+    ```asm
+    print_num proc
+    ; Converts number in AX to decimal
+    ; and prints to console
+    ...
+    ret
+    print_num endp
+    ```
+    
+    Helper routine to print numbers.
+  </Tab>
+</Tabs>
+
+### Example Assembly Output
+
+<CodeGroup>
+```text Source
+let x = 10;
+let y = 20;
+let sum = x + y;
+print sum;
+```
+
+```asm Assembly
+.model small
+.stack 100h
+
+.data
+x dw 0
+y dw 0
+sum dw 0
+msg db 13,10,'$'
+
+.code
+main proc
+mov ax, @data
+mov ds, ax
+
+mov ax, 10
+mov x, ax
+
+mov ax, 20
+mov y, ax
+
+mov ax, x
+push ax
+mov ax, y
+mov bx, ax
+pop ax
+add ax, bx
+mov sum, ax
+
+mov ax, sum
+call print_num
+mov ah,09h
+lea dx,msg
+int 21h
+
+mov ah,4ch
+int 21h
+main endp
+
+; print_num procedure...
+
+end main
+```
+</CodeGroup>
+
+## Error Message Summary
+
+<ResponseField name="Lexical Errors" type="Phase 1">
+  ```
+  Error léxico en línea X, columna Y: carácter inesperado 'C'
+  ```
+  Invalid character in source code.
+</ResponseField>
+
+<ResponseField name="Syntax Errors" type="Phase 2">
+  ```
+  Error de sintaxis en línea X, columna Y: [expected]. Se encontró '[token]'
+  ```
+  Tokens in wrong order or missing required token.
+</ResponseField>
+
+<ResponseField name="Semantic Errors" type="Phase 3">
+  ```
+  Error semántico en línea X, columna Y: [description]
+  ```
+  Logical problems like undefined variables or division by zero.
+</ResponseField>
+
+## Success Indicators
+
+Look for these messages to confirm success:
+
+<Steps>
+  <Step icon="check">
+    ✓ Completado: N tokens generados
+  </Step>
+  <Step icon="check">
+    ✓ Completado: N sentencias parseadas
+  </Step>
+  <Step icon="check">
+    ✓ Completado: N variables verificadas
+  </Step>
+  <Step icon="check">
+    ✓ Ejecución finalizada
+  </Step>
+  <Step icon="check">
+    ✓ RESULTADO: ¡Compilación exitosa!
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Writing Programs" icon="pen" href="/guides/writing-programs">
+    Master the language syntax to avoid errors
+  </Card>
+  
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Diagnose and fix common compilation issues
+  </Card>
+  
+  <Card title="Compiler Architecture" icon="diagram-project" href="/architecture/overview">
+    Learn how each phase is implemented
+  </Card>
+  
+  <Card title="Code Generation" icon="microchip" href="/components/code-generation">
+    Understand the generated assembly code
+  </Card>
+</CardGroup>

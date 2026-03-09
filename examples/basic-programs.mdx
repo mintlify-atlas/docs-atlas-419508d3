@@ -1,0 +1,385 @@
+---
+title: 'Basic Programs'
+description: 'Simple complete programs demonstrating the compiler fundamentals'
+icon: 'code'
+---
+
+# Basic Programs
+
+This page demonstrates simple complete programs that showcase the compiler's core functionality: variable declarations, arithmetic operations, and print statements.
+
+## Simple Variable Declaration
+
+The most basic program declares a variable and prints its value.
+
+<Steps>
+  <Step title="Write the source code">
+    ```javascript
+    let x = 10;
+    print x;
+    ```
+  </Step>
+
+  <Step title="Lexical Analysis (Tokens)">
+    The scanner converts the source code into tokens:
+
+    ```
+    TIPO                 LEXEMA               LINEA    COLUMNA  VALOR          
+    ----------------------------------------------------------------------------------
+    LET                  let                  1        1                       
+    IDENTIFICADOR        x                    1        5                       
+    IGUAL                =                    1        7                       
+    NUMERO               10                   1        9        10             
+    PUNTO_COMA           ;                    1        11                      
+    PRINT                print                2        1                       
+    IDENTIFICADOR        x                    2        7                       
+    PUNTO_COMA           ;                    2        8                       
+    FIN_ARCHIVO                               2        9
+    ```
+  </Step>
+
+  <Step title="Syntax Analysis (AST)">
+    The parser constructs an Abstract Syntax Tree:
+
+    ```
+    Programa
+    ├── DeclaracionVariable
+    │   ├── nombre: 'x'
+    │   └── valor:
+    │       └── NumeroLiteral(10)
+    └── SentenciaPrint
+        └── expresion:
+            └── Identificador('x')
+    ```
+  </Step>
+
+  <Step title="Semantic Analysis">
+    The semantic analyzer verifies that:
+    - Variable `x` is declared before use ✓
+    - No division by zero ✓
+    
+    Result: **1 variable verified**
+  </Step>
+
+  <Step title="Intermediate Representation (IR)">
+    Three-address code is generated:
+
+    ```
+    x = 10
+    print x
+    ```
+  </Step>
+
+  <Step title="Execution">
+    The interpreter executes the program:
+
+    ```
+    Resultado:
+    → 10
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Arithmetic Operations
+
+A program demonstrating basic arithmetic with multiple variables.
+
+<Tabs>
+  <Tab title="Source Code">
+    ```javascript
+    let a = 5;
+    let b = 3;
+    let sum = a + b;
+    let product = a * b;
+    print sum;
+    print product;
+    ```
+  </Tab>
+
+  <Tab title="Tokens">
+    ```
+    TIPO                 LEXEMA               LINEA    COLUMNA  VALOR
+    -------------------------------------------------------------------------------
+    LET                  let                  1        1
+    IDENTIFICADOR        a                    1        5
+    IGUAL                =                    1        7
+    NUMERO               5                    1        9        5
+    PUNTO_COMA           ;                    1        10
+    LET                  let                  2        1
+    IDENTIFICADOR        b                    2        5
+    IGUAL                =                    2        7
+    NUMERO               3                    2        9        3
+    PUNTO_COMA           ;                    2        10
+    LET                  let                  3        1
+    IDENTIFICADOR        sum                  3        5
+    IGUAL                =                    3        9
+    IDENTIFICADOR        a                    3        11
+    SUMA                 +                    3        13
+    IDENTIFICADOR        b                    3        15
+    PUNTO_COMA           ;                    3        16
+    LET                  let                  4        1
+    IDENTIFICADOR        product              4        5
+    IGUAL                =                    4        13
+    IDENTIFICADOR        a                    4        15
+    MULTIPLICACION       *                    4        17
+    IDENTIFICADOR        b                    4        19
+    PUNTO_COMA           ;                    4        20
+    PRINT                print                5        1
+    IDENTIFICADOR        sum                  5        7
+    PUNTO_COMA           ;                    5        10
+    PRINT                print                6        1
+    IDENTIFICADOR        product              6        7
+    PUNTO_COMA           ;                    6        14
+    FIN_ARCHIVO                               6        15
+    ```
+  </Tab>
+
+  <Tab title="AST">
+    ```
+    Programa
+    ├── DeclaracionVariable
+    │   ├── nombre: 'a'
+    │   └── valor:
+    │       └── NumeroLiteral(5)
+    ├── DeclaracionVariable
+    │   ├── nombre: 'b'
+    │   └── valor:
+    │       └── NumeroLiteral(3)
+    ├── DeclaracionVariable
+    │   ├── nombre: 'sum'
+    │   └── valor:
+    │       └── ExpresionBinaria
+    │           ├── operador: '+'
+    │           ├── izquierda:
+    │           │   └── Identificador('a')
+    │           └── derecha:
+    │               └── Identificador('b')
+    ├── DeclaracionVariable
+    │   ├── nombre: 'product'
+    │   └── valor:
+    │       └── ExpresionBinaria
+    │           ├── operador: '*'
+    │           ├── izquierda:
+    │           │   └── Identificador('a')
+    │           └── derecha:
+    │               └── Identificador('b')
+    ├── SentenciaPrint
+    │   └── expresion:
+    │       └── Identificador('sum')
+    └── SentenciaPrint
+        └── expresion:
+            └── Identificador('product')
+    ```
+  </Tab>
+
+  <Tab title="IR & Execution">
+    **Intermediate Code:**
+    ```
+    a = 5
+    b = 3
+    t0 = a + b
+    sum = t0
+    t1 = a * b
+    product = t1
+    print sum
+    print product
+    ```
+
+    **Execution Output:**
+    ```
+    Resultado:
+    → 8
+    Resultado:
+    → 15
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Complete Compilation Pipeline
+
+A comprehensive example showing all compilation phases for a more complex program.
+
+<CodeGroup>
+```javascript Source
+let a = 10;
+let b = 20;
+let c = a + b * 2;
+print c;
+```
+
+```text Tokens
+TIPO                 LEXEMA               LINEA    COLUMNA  VALOR          
+----------------------------------------------------------------------------------
+LET                  let                  1        1                       
+IDENTIFICADOR        a                    1        5                       
+IGUAL                =                    1        7                       
+NUMERO               10                   1        9        10             
+PUNTO_COMA           ;                    1        11                      
+LET                  let                  2        1                       
+IDENTIFICADOR        b                    2        5                       
+IGUAL                =                    2        7                       
+NUMERO               20                   2        9        20             
+PUNTO_COMA           ;                    2        11                      
+LET                  let                  3        1                       
+IDENTIFICADOR        c                    3        5                       
+IGUAL                =                    3        7                       
+IDENTIFICADOR        a                    3        9                       
+SUMA                 +                    3        11                      
+IDENTIFICADOR        b                    3        13                      
+MULTIPLICACION       *                    3        15                      
+NUMERO               2                    3        17       2              
+PUNTO_COMA           ;                    3        18                      
+PRINT                print                4        1                       
+IDENTIFICADOR        c                    4        7                       
+PUNTO_COMA           ;                    4        8                       
+FIN_ARCHIVO                               4        9
+```
+
+```text AST
+Programa
+├── DeclaracionVariable
+│   ├── nombre: 'a'
+│   └── valor:
+│       └── NumeroLiteral(10)
+├── DeclaracionVariable
+│   ├── nombre: 'b'
+│   └── valor:
+│       └── NumeroLiteral(20)
+├── DeclaracionVariable
+│   ├── nombre: 'c'
+│   └── valor:
+│       └── ExpresionBinaria
+│           ├── operador: '+'
+│           ├── izquierda:
+│           │   └── Identificador('a')
+│           └── derecha:
+│               └── ExpresionBinaria
+│                   ├── operador: '*'
+│                   ├── izquierda:
+│                   │   └── Identificador('b')
+│                   └── derecha:
+│                       └── NumeroLiteral(2)
+└── SentenciaPrint
+    └── expresion:
+        └── Identificador('c')
+```
+
+```text Intermediate Code
+a = 10
+b = 20
+t0 = b * 2
+t1 = a + t0
+c = t1
+print c
+```
+
+```asm Assembly (8086)
+.model small
+.stack 100h
+
+.data
+a dw 0
+b dw 0
+c dw 0
+msg db 13,10,'$'
+
+.code
+main proc
+mov ax, @data
+mov ds, ax
+
+mov ax, 10
+mov a, ax
+
+mov ax, 20
+mov b, ax
+
+mov ax, a
+push ax
+mov ax, b
+push ax
+mov ax, 2
+mov bx, ax
+pop ax
+imul bx
+mov bx, ax
+pop ax
+add ax, bx
+mov c, ax
+
+mov ax, c
+call print_num
+mov ah,09h
+lea dx,msg
+int 21h
+
+mov ah,4ch
+int 21h
+main endp
+
+; imprimir numero en AX
+print_num proc
+push ax
+push bx
+push cx
+push dx
+mov cx,0
+mov bx,10
+cmp ax,0
+jne convert
+mov dl,'0'
+mov ah,02h
+int 21h
+jmp done
+convert:
+next_digit:
+xor dx,dx
+div bx
+push dx
+inc cx
+cmp ax,0
+jne next_digit
+print_loop:
+pop dx
+add dl,'0'
+mov ah,02h
+int 21h
+loop print_loop
+done:
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+print_num endp
+end main
+```
+</CodeGroup>
+
+<Note>
+  **Execution Result:** The program outputs `50` because it evaluates as `10 + (20 * 2) = 10 + 40 = 50`.
+  
+  Notice how operator precedence is correctly handled: multiplication is performed before addition.
+</Note>
+
+---
+
+## Comments Support
+
+The compiler supports single-line comments using `//`.
+
+```javascript
+// This is a comment and will be ignored
+let x = 42;  // Assign the answer to life
+print x;     // Output the result
+```
+
+Comments are removed during lexical analysis and do not generate tokens.
+
+<Tip>
+  Use comments to document your code and make it more readable. The compiler completely ignores everything after `//` until the end of the line.
+</Tip>

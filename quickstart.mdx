@@ -1,80 +1,359 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick Start"
+description: "Get up and running with your first compiled program in minutes"
+icon: "rocket"
 ---
 
-## Get started in three steps
+## Your First Program
 
-Get your documentation site running locally and make your first customization.
+Let's compile a simple program that demonstrates all the compiler's capabilities. We'll create a program that performs arithmetic and prints the result.
 
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+<Steps>
+  <Step title="Write Your First Program">
+    Create a file called `first.txt` with this content:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```python first.txt
+    let x = 5 + 3;
+    let y = x * 2;
+    print y;
+    ```
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    This program:
+    - Declares variable `x` and assigns it the value 8 (5 + 3)
+    - Declares variable `y` and assigns it 16 (x * 2)
+    - Prints the value of `y`
+  </Step>
+  
+  <Step title="Launch the Compiler">
+    <Tabs>
+      <Tab title="GUI Mode">
+        Launch the graphical interface:
+        
+        ```bash
+        python3 compfinal.py
+        ```
+        
+        A window will open with:
+        - **Editor pane** on the left for writing code
+        - **Output pane** on the right for compilation results
+        - **Toolbar** at the top with buttons
+      </Tab>
+      
+      <Tab title="Console Mode">
+        Launch the command-line interface:
+        
+        ```bash
+        python3 compfinal.py --consola
+        ```
+        
+        You'll see a prompt to enter your code.
+      </Tab>
+    </Tabs>
+  </Step>
+  
+  <Step title="Enter Your Code">
+    <Tabs>
+      <Tab title="GUI Mode">
+        1. Type or paste your code into the editor pane
+        2. Click the **Compilar** button or press `Ctrl+Enter`
+        3. Watch the output appear in the right pane
+      </Tab>
+      
+      <Tab title="Console Mode">
+        1. Type or paste your code at the prompt
+        2. Press `Ctrl+D` (Linux/macOS) or `Ctrl+Z` then Enter (Windows) to finish input
+        3. The compiler will process your code automatically
+      </Tab>
+    </Tabs>
+  </Step>
+  
+  <Step title="View the Results">
+    The compiler will show you output from all six compilation phases:
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```
+    ═══════════════════════════════════════════════════════════════════════
+      MINI-COMPILADOR EDUCATIVO
+    ═══════════════════════════════════════════════════════════════════════
+    
+    [FASE 1] Análisis Léxico...
+             (Convirtiendo código en tokens)
+      ✓ Completado: 14 tokens generados
+    
+    [FASE 2] Análisis Sintáctico...
+             (Verificando gramática y construyendo AST)
+      ✓ Completado: AST construido con 3 sentencias
+    
+    [FASE 3] Análisis Semántico...
+             (Verificando lógica del programa)
+      ✓ Completado: Sin errores semánticos
+    
+    [FASE 4] Generación de Código Intermedio...
+             (Creando representación de tres direcciones)
+      ✓ Completado: 5 instrucciones IR generadas
+    
+    [FASE 5] Interprete...
+             (Ejecutando el programa)
+      ✓ Ejecución exitosa
+      Salida del programa:
+      16
+    
+    [FASE 6] Generación de Código Ensamblador...
+             (Generando código x86)
+      ✓ Completado: 87 líneas de código ASM generadas
+    
+    ═══════════════════════════════════════════════════════════════════════
+    ✓ COMPILACIÓN EXITOSA
+    ═══════════════════════════════════════════════════════════════════════
+    ```
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Understanding the Output
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Let's break down what each phase does with your program:
 
-### Step 3: Go live
+<Tabs>
+  <Tab title="Phase 1: Tokens">
+    The **Scanner** breaks your code into tokens:
+    
+    ```
+    Token #1  : LET                  | Lexema: 'let'       | Línea: 1 | Col: 1
+    Token #2  : IDENTIFICADOR        | Lexema: 'x'         | Línea: 1 | Col: 5
+    Token #3  : IGUAL                | Lexema: '='         | Línea: 1 | Col: 7
+    Token #4  : NUMERO               | Lexema: '5'         | Línea: 1 | Col: 9
+    Token #5  : SUMA                 | Lexema: '+'         | Línea: 1 | Col: 11
+    Token #6  : NUMERO               | Lexema: '3'         | Línea: 1 | Col: 13
+    Token #7  : PUNTO_COMA           | Lexema: ';'         | Línea: 1 | Col: 14
+    ...
+    ```
+    
+    Each piece of your code is identified and categorized.
+  </Tab>
+  
+  <Tab title="Phase 2: AST">
+    The **Parser** builds an Abstract Syntax Tree:
+    
+    ```
+    Programa
+    │
+    ├─ DeclaracionVariable
+    │  ├─ nombre: 'x'
+    │  └─ valor: ExpresionBinaria
+    │     ├─ izquierda: NumeroLiteral(5)
+    │     ├─ operador: SUMA
+    │     └─ derecha: NumeroLiteral(3)
+    │
+    ├─ DeclaracionVariable
+    │  ├─ nombre: 'y'
+    │  └─ valor: ExpresionBinaria
+    │     ├─ izquierda: Identificador('x')
+    │     ├─ operador: MULTIPLICACION
+    │     └─ derecha: NumeroLiteral(2)
+    │
+    └─ SentenciaPrint
+       └─ expresion: Identificador('y')
+    ```
+    
+    The tree structure shows the relationship between statements and expressions.
+  </Tab>
+  
+  <Tab title="Phase 3: Semantic">
+    The **Semantic Analyzer** verifies logical correctness:
+    
+    ```
+    ✓ Variable 'x' declarada correctamente
+    ✓ Variable 'y' declarada correctamente  
+    ✓ Variable 'x' existe y puede ser usada
+    ✓ Variable 'y' existe y puede ser usada
+    ✓ No hay divisiones por cero
+    ✓ No hay auto-referencias
+    ```
+  </Tab>
+  
+  <Tab title="Phase 4: IR">
+    The **IR Generator** creates three-address code:
+    
+    ```
+    t1 = 5 + 3
+    x = t1
+    t2 = x * 2
+    y = t2
+    print y
+    ```
+    
+    This intermediate representation is easier to optimize and translate to assembly.
+  </Tab>
+  
+  <Tab title="Phase 5: Execution">
+    The **Interpreter** runs your program:
+    
+    ```
+    Ejecutando programa...
+    
+    Salida:
+    16
+    
+    ✓ Programa ejecutado correctamente.
+    ```
+    
+    Variables: x=8, y=16
+  </Tab>
+  
+  <Tab title="Phase 6: Assembly">
+    The **Assembly Generator** produces x86 code:
+    
+    ```asm output.asm
+    .model small
+    .stack 100h
+    .data
+        x dw 0
+        y dw 0
+    .code
+    main proc
+        mov ax, @data
+        mov ds, ax
+        
+        ; x = 5 + 3
+        mov ax, 5
+        push ax
+        mov ax, 3
+        mov bx, ax
+        pop ax
+        add ax, bx
+        mov x, ax
+        
+        ; y = x * 2
+        mov ax, x
+        push ax
+        mov ax, 2
+        mov bx, ax
+        pop ax
+        imul bx
+        mov y, ax
+        
+        ; print y
+        mov ax, y
+        call print_num
+        
+        mov ah, 4Ch
+        int 21h
+    main endp
+    
+    ; ... print_num routine ...
+    
+    end main
+    ```
+    
+    This code can be assembled and run on EMU8086.
+  </Tab>
+</Tabs>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
+## Try More Examples
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Simple Arithmetic" icon="calculator">
+    ```python
+    let result = 10 + 5 * 2;
+    print result;
+    ```
+    Expected output: `20`
+  </Card>
+  
+  <Card title="Multiple Variables" icon="table">
+    ```python
+    let a = 10;
+    let b = 20;
+    let c = 30;
+    let sum = a + b + c;
+    print sum;
+    ```
+    Expected output: `60`
+  </Card>
+  
+  <Card title="Parentheses" icon="brackets-round">
+    ```python
+    let result = (10 + 5) * 2;
+    print result;
+    ```
+    Expected output: `30`
+  </Card>
+  
+  <Card title="Complex Expression" icon="function">
+    ```python
+    let x = 100;
+    let y = 50;
+    let z = (x + y) / 2;
+    print z;
+    ```
+    Expected output: `75`
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Common First Steps
+
+<AccordionGroup>
+  <Accordion title="How do I save my program?">
+    In **GUI mode**, your code is automatically maintained in the editor. You can manually copy it to a text file.
+    
+    In **console mode**, type your program in a text editor first, then paste it into the console.
+  </Accordion>
+  
+  <Accordion title="How do I export the assembly code?">
+    In **GUI mode**, click the **Export ASM** button after successful compilation. Choose a location to save the `.asm` file.
+    
+    In **console mode**, the assembly code is printed to the console - you can redirect it to a file:
+    
+    ```bash
+    python3 compfinal.py --consola > output.txt
+    ```
+  </Accordion>
+  
+  <Accordion title="What if I get an error?">
+    The compiler will show you exactly what went wrong and where:
+    
+    ```
+    ✗ Error Sintáctico en línea 2, columna 5: Se esperaba ';' después de la expresión
+    ```
+    
+    Check the line and column numbers to find and fix the issue.
+  </Accordion>
+  
+  <Accordion title="Can I test the assembly code?">
+    Yes! Export the assembly code and open it in **EMU8086**:
+    
+    1. Click **Export ASM** in the GUI
+    2. Open EMU8086
+    3. Load your `.asm` file
+    4. Click **Emulate** to assemble and run it
+    5. View the output in the EMU8086 console
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that you've compiled your first program, dive deeper:
+
+<CardGroup cols={3}>
+  <Card title="Language Syntax" icon="book" href="/guides/writing-programs">
+    Learn all the language features
+  </Card>
+  <Card title="Compiler Architecture" icon="diagram-project" href="/concepts/architecture">
+    Understand how it works internally
+  </Card>
+  <Card title="More Examples" icon="code" href="/examples/basic-programs">
+    Explore complex programs
+  </Card>
+  <Card title="CLI Guide" icon="terminal" href="/guides/using-cli">
+    Master console mode features
+  </Card>
+  <Card title="GUI Guide" icon="desktop" href="/guides/using-gui">
+    Learn all GUI shortcuts
+  </Card>
+  <Card title="Understanding Output" icon="magnifying-glass" href="/guides/interpreting-output">
+    Decode compilation results
+  </Card>
+</CardGroup>
+
+<Check>
+Congratulations! You've successfully compiled your first program with Mini-Compilador Educativo.
+</Check>

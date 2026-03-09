@@ -1,0 +1,350 @@
+---
+title: 'Writing Programs'
+description: 'Learn the syntax and best practices for writing programs in the Mini-Compilador Educativo'
+---
+
+## Language Overview
+
+The Mini-Compilador Educativo uses a simple imperative language with two primary statement types: variable declarations and print statements. Programs are composed of sequences of these statements, each terminated with a semicolon.
+
+## Basic Syntax
+
+### Variable Declarations
+
+Declare variables using the `let` keyword:
+
+```text
+let variable_name = expression;
+```
+
+<Note>
+All variables must be declared before they can be used in expressions.
+</Note>
+
+**Examples:**
+
+```text
+let x = 10;
+let sum = 5 + 3;
+let result = x * 2;
+```
+
+### Print Statements
+
+Output values using the `print` keyword:
+
+```text
+print expression;
+```
+
+**Examples:**
+
+```text
+print 42;
+print x;
+print x + y * 2;
+```
+
+## Expressions and Operators
+
+### Arithmetic Operators
+
+The language supports four basic arithmetic operators with standard precedence:
+
+<CardGroup cols={2}>
+  <Card title="Addition (+)" icon="plus">
+    Adds two values
+    ```text
+    let sum = 10 + 5;  // 15
+    ```
+  </Card>
+  
+  <Card title="Subtraction (-)" icon="minus">
+    Subtracts the right operand from the left
+    ```text
+    let diff = 20 - 8;  // 12
+    ```
+  </Card>
+  
+  <Card title="Multiplication (*)" icon="xmark">
+    Multiplies two values
+    ```text
+    let product = 6 * 7;  // 42
+    ```
+  </Card>
+  
+  <Card title="Division (/)" icon="divide">
+    Integer division (result is truncated)
+    ```text
+    let quotient = 15 / 4;  // 3
+    ```
+  </Card>
+</CardGroup>
+
+### Operator Precedence
+
+Operators follow standard mathematical precedence rules:
+
+1. **Parentheses** `()` - Highest priority
+2. **Multiplication and Division** `*`, `/` 
+3. **Addition and Subtraction** `+`, `-` - Lowest priority
+
+**Example:**
+
+```text
+let a = 3 + 4 * 2;      // Result: 11 (not 14)
+let b = (3 + 4) * 2;    // Result: 14
+```
+
+### Using Parentheses
+
+Use parentheses to override default precedence:
+
+```text
+let result1 = 10 + 5 * 2;       // 20
+let result2 = (10 + 5) * 2;     // 30
+let result3 = 100 / (2 + 3);    // 20
+```
+
+## Data Types
+
+### Numbers
+
+The language supports **integer literals** only:
+
+<CodeGroup>
+```text Valid Numbers
+let a = 0;
+let b = 42;
+let c = 1000;
+```
+
+```text Invalid Numbers
+let x = 3.14;     // No decimal support
+let y = -5;       // No negative literals (use subtraction)
+```
+</CodeGroup>
+
+<Warning>
+Negative numbers are not supported as literals. Use subtraction instead: `let x = 0 - 5;`
+</Warning>
+
+### Variables
+
+Variable names (identifiers) must:
+- Start with a letter (a-z, A-Z) or underscore (_)
+- Contain only letters, digits, and underscores
+- Not be a reserved word
+
+**Valid identifiers:**
+```text
+let x = 10;
+let myVariable = 20;
+let sum_total = 30;
+let _private = 40;
+let counter1 = 50;
+```
+
+**Invalid identifiers:**
+```text
+let 1variable = 10;   // Cannot start with digit
+let my-var = 20;      // Cannot contain hyphen
+let let = 30;         // 'let' is reserved
+```
+
+## Reserved Words
+
+The following keywords are reserved:
+
+- `let` - Variable declaration
+- `print` - Output statement
+- `leo` - Reserved (no operation)
+- `diego` - Reserved (no operation)
+
+<Info>
+The keywords `leo` and `diego` are recognized by the lexer but have no semantic effect. They're included as educational examples of reserved words.
+</Info>
+
+## Comments
+
+Single-line comments start with `//`:
+
+```text
+// This is a comment
+let x = 10;  // Inline comment
+
+// Comments are ignored by the compiler
+print x;
+```
+
+## Complete Program Examples
+
+### Example 1: Basic Arithmetic
+
+```text
+// Calculate the area of a rectangle
+let width = 10;
+let height = 5;
+let area = width * height;
+print area;  // Output: 50
+```
+
+### Example 2: Expression Evaluation
+
+```text
+// Demonstrate operator precedence
+let a = 5;
+let b = 10;
+let c = a + b * 2;
+print c;  // Output: 25
+
+let d = (a + b) * 2;
+print d;  // Output: 30
+```
+
+### Example 3: Multi-step Calculation
+
+```text
+// Calculate final value with multiple operations
+let base = 100;
+let increment = 20;
+let multiplier = 3;
+
+let step1 = base + increment;
+let step2 = step1 * multiplier;
+let final = step2 / 2;
+
+print final;  // Output: 180
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use descriptive variable names">
+    Choose names that indicate the variable's purpose:
+    
+    ```text
+    // Good
+    let totalPrice = 100;
+    let itemCount = 5;
+    let averagePrice = totalPrice / itemCount;
+    
+    // Avoid
+    let x = 100;
+    let y = 5;
+    let z = x / y;
+    ```
+  </Accordion>
+  
+  <Accordion title="Declare variables before use">
+    Always declare variables with `let` before referencing them:
+    
+    ```text
+    // Correct
+    let x = 10;
+    let y = x + 5;
+    
+    // Error: y not declared
+    let result = x + y;
+    let x = 10;
+    ```
+  </Accordion>
+  
+  <Accordion title="Use parentheses for clarity">
+    Even when not required, parentheses improve readability:
+    
+    ```text
+    // Clear intent
+    let result = (a + b) * (c - d);
+    
+    // Harder to read
+    let result = a + b * c - d;
+    ```
+  </Accordion>
+  
+  <Accordion title="Add comments to explain logic">
+    Document complex calculations:
+    
+    ```text
+    // Calculate compound interest
+    let principal = 1000;
+    let rate = 5;        // 5% per period
+    let periods = 3;
+    
+    // Manual compound calculation: P * (1 + r)^n
+    let multiplier = 100 + rate;  // 105
+    let year1 = principal * multiplier / 100;
+    let year2 = year1 * multiplier / 100;
+    let year3 = year2 * multiplier / 100;
+    
+    print year3;
+    ```
+  </Accordion>
+  
+  <Accordion title="Avoid division by zero">
+    The compiler detects division by literal zero:
+    
+    ```text
+    // Compiler error
+    let invalid = 10 / 0;
+    
+    // Safe
+    let divisor = 5;
+    let result = 10 / divisor;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common Errors
+
+### Syntax Errors
+
+<CodeGroup>
+```text Missing Semicolon
+let x = 10  // Error: expected ';'
+```
+
+```text Missing Assignment
+let x;  // Error: expected '=' after variable name
+```
+
+```text Invalid Statement
+x = 20;  // Error: expected 'let' or 'print'
+```
+</CodeGroup>
+
+### Semantic Errors
+
+<CodeGroup>
+```text Undefined Variable
+let x = y + 5;  // Error: variable 'y' not declared
+```
+
+```text Division by Zero
+let result = 10 / 0;  // Error: division by zero detected
+```
+
+```text Self-Reference
+let x = x + 1;  // Error: variable 'x' not declared yet
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Using the CLI" icon="terminal" href="/guides/using-cli">
+    Learn how to compile programs from the command line
+  </Card>
+  
+  <Card title="Using the GUI" icon="window" href="/guides/using-gui">
+    Use the graphical interface to write and compile programs
+  </Card>
+  
+  <Card title="Interpreting Output" icon="code" href="/guides/interpreting-output">
+    Understand the compiler's output and error messages
+  </Card>
+  
+  <Card title="Grammar Reference" icon="book" href="/concepts/grammar">
+    Complete language specification and grammar
+  </Card>
+</CardGroup>

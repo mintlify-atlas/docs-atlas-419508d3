@@ -1,0 +1,266 @@
+---
+title: "Installation"
+description: "Set up the Mini-Compilador Educativo on your system"
+icon: "download"
+---
+
+## Prerequisites
+
+<Note>
+The Mini-Compilador Educativo requires Python 3.x and uses only standard library modules, making installation straightforward.
+</Note>
+
+### System Requirements
+
+<CardGroup cols={2}>
+  <Card title="Python Version" icon="python">
+    Python 3.6 or higher
+  </Card>
+  <Card title="Operating System" icon="desktop">
+    Windows, macOS, or Linux
+  </Card>
+  <Card title="Disk Space" icon="hard-drive">
+    Less than 1 MB
+  </Card>
+  <Card title="Memory" icon="memory">
+    Minimal (standard Python runtime)
+  </Card>
+</CardGroup>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Verify Python Installation">
+    First, check that you have Python 3.x installed:
+    
+    <CodeGroup>
+    ```bash Windows
+    python --version
+    ```
+    
+    ```bash macOS/Linux
+    python3 --version
+    ```
+    </CodeGroup>
+    
+    You should see output like `Python 3.8.10` or higher.
+    
+    <Warning>
+    If Python is not installed, download it from [python.org](https://www.python.org/downloads/) and install it before proceeding.
+    </Warning>
+  </Step>
+  
+  <Step title="Download the Compiler">
+    Clone the repository or download the source code:
+    
+    ```bash
+    git clone https://github.com/diego0109/Programas.git
+    cd Programas
+    ```
+    
+    Alternatively, download the ZIP file from GitHub and extract it.
+  </Step>
+  
+  <Step title="Verify File Structure">
+    Ensure you have the main compiler file:
+    
+    ```bash
+    ls compfinal.py
+    ```
+    
+    The file should be approximately 86 KB (~2115 lines).
+  </Step>
+  
+  <Step title="Test the Installation">
+    Run the compiler to verify it works:
+    
+    <CodeGroup>
+    ```bash Windows
+    python compfinal.py
+    ```
+    
+    ```bash macOS/Linux
+    python3 compfinal.py
+    ```
+    </CodeGroup>
+    
+    You should see the graphical interface launch. If it opens successfully, the installation is complete!
+    
+    <Info>
+    On some Linux systems without a display server, the GUI may not launch. Use console mode instead (see below).
+    </Info>
+  </Step>
+</Steps>
+
+## No Dependencies Required!
+
+<Check>
+Unlike many compiler projects, this compiler uses **only Python standard library modules**. No external dependencies need to be installed!
+</Check>
+
+The compiler uses these built-in Python modules:
+- `enum` - For token type enumeration
+- `dataclasses` - For AST node definitions
+- `typing` - For type hints
+- `tkinter` - For the graphical interface
+- `sys`, `io`, `time` - For system operations
+
+## Running the Compiler
+
+### GUI Mode (Default)
+
+Simply run the script without arguments to launch the graphical interface:
+
+<CodeGroup>
+```bash Windows
+python compfinal.py
+```
+
+```bash macOS/Linux
+python3 compfinal.py
+```
+</CodeGroup>
+
+### Console Mode
+
+For command-line usage (useful on servers or for automation), use the `--consola` flag:
+
+<CodeGroup>
+```bash Windows
+python compfinal.py --consola
+```
+
+```bash macOS/Linux
+python3 compfinal.py --consola
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Python not found">
+    **Error**: `python: command not found` or `python3: command not found`
+    
+    **Solution**: Install Python from [python.org](https://www.python.org/downloads/). On Windows, make sure to check "Add Python to PATH" during installation.
+  </Accordion>
+  
+  <Accordion title="Tkinter not available">
+    **Error**: `ModuleNotFoundError: No module named 'tkinter'`
+    
+    **Solution**: Tkinter should be included with Python, but some Linux distributions package it separately:
+    
+    ```bash Ubuntu/Debian
+    sudo apt-get install python3-tk
+    ```
+    
+    ```bash Fedora
+    sudo dnf install python3-tkinter
+    ```
+    
+    ```bash Arch Linux
+    sudo pacman -S tk
+    ```
+  </Accordion>
+  
+  <Accordion title="GUI doesn't launch on Linux">
+    **Error**: GUI window doesn't appear or crashes
+    
+    **Solution**: If you're on a headless server or don't have X11, use console mode:
+    
+    ```bash
+    python3 compfinal.py --consola
+    ```
+  </Accordion>
+  
+  <Accordion title="Encoding errors">
+    **Error**: `UnicodeEncodeError` or garbled characters
+    
+    **Solution**: The compiler automatically configures UTF-8 encoding, but if issues persist, set your terminal encoding:
+    
+    ```bash Windows (PowerShell)
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    ```
+    
+    ```bash Linux/macOS
+    export PYTHONIOENCODING=utf-8
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Verify Installation
+
+To confirm everything works, create a test file:
+
+<Steps>
+  <Step title="Create test.txt">
+    Create a file named `test.txt` with this content:
+    
+    ```python
+    let x = 5 + 3;
+    print x;
+    ```
+  </Step>
+  
+  <Step title="Run in console mode">
+    ```bash
+    python3 compfinal.py --consola
+    ```
+    
+    When prompted, paste the code above and press Ctrl+D (Linux/macOS) or Ctrl+Z then Enter (Windows).
+  </Step>
+  
+  <Step title="Check output">
+    You should see:
+    - ✓ Lexical analysis complete with tokens
+    - ✓ Syntactic analysis complete with AST
+    - ✓ Semantic analysis complete
+    - ✓ IR code generated
+    - ✓ Program executed: `8`
+    - ✓ Assembly code generated
+    
+    If you see this output, the compiler is working correctly!
+  </Step>
+</Steps>
+
+## Optional: EMU8086 Setup
+
+To actually run the generated x86 assembly code, you'll need the EMU8086 emulator:
+
+<Steps>
+  <Step title="Download EMU8086">
+    Download EMU8086 from [emu8086.com](http://www.emu8086.com/) (Windows only)
+  </Step>
+  
+  <Step title="Install EMU8086">
+    Run the installer and follow the setup wizard
+  </Step>
+  
+  <Step title="Export Assembly">
+    In the compiler GUI, click the **Export ASM** button after compilation to save the `.asm` file
+  </Step>
+  
+  <Step title="Load in EMU8086">
+    Open the `.asm` file in EMU8086, assemble it, and run it to see the execution
+  </Step>
+</Steps>
+
+<Info>
+EMU8086 is optional - the compiler includes a built-in interpreter for testing programs without assembly.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Compile your first program
+  </Card>
+  <Card title="Writing Programs" icon="pencil" href="/guides/writing-programs">
+    Learn the language syntax
+  </Card>
+  <Card title="Using the CLI" icon="terminal" href="/guides/using-cli">
+    Master console mode
+  </Card>
+  <Card title="Using the GUI" icon="desktop" href="/guides/using-gui">
+    Explore the graphical interface
+  </Card>
+</CardGroup>

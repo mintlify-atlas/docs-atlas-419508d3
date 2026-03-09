@@ -1,0 +1,522 @@
+---
+title: 'GeneradorASM'
+description: 'Assembly code generator that produces x86 assembly for EMU8086'
+icon: 'microchip'
+---
+
+## Overview
+
+The `GeneradorASM` (Assembly Generator) class generates x86 assembly code compatible with EMU8086 from the Abstract Syntax Tree. This is the sixth and final phase of compilation, producing executable machine code.
+
+## Class Definition
+
+```python
+class GeneradorASM:
+    def __init__(self)
+```
+
+### Constructor Parameters
+
+No parameters required. The generator initializes with empty code and variable lists.
+
+## Attributes
+
+- `codigo` (List[str]): List of generated assembly instructions
+- `variables` (set): Set of variable names used in the program
+
+## Public Methods
+
+### generar()
+
+Generates complete x86 assembly code from the AST.
+
+```python
+def generar(self, programa: Programa) -> str
+```
+
+<ParamField path="programa" type="Programa" required>
+  The AST produced by the Parser
+</ParamField>
+
+<ResponseField name="return" type="str">
+  Complete assembly source code as a string, ready to be assembled
+</ResponseField>
+
+**Example:**
+```python
+scanner = Scanner("let x = 5 + 3; print x;")
+tokens = scanner.escanear_tokens()
+
+parser = Parser(tokens)
+programa = parser.parsear()
+
+generador = GeneradorASM()
+codigo_asm = generador.generar(programa)
+
+print(codigo_asm)
+# Produces complete .asm file content
+```
+
+## Generated Assembly Structure
+
+The generated assembly follows the standard x86 small model structure:
+
+```assembly
+.model small
+.stack 100h
+
+.data
+[variable declarations]
+msg db 13,10,'$'
+
+.code
+main proc
+mov ax, @data
+mov ds, ax
+
+[program instructions]
+
+mov ah,4ch
+int 21h
+main endp
+
+[print_num routine]
+
+end main
+```
+
+## Assembly Sections
+
+### Model and Stack
+
+```assembly
+.model small    ; Small memory model
+.stack 100h     ; 256 bytes stack
+```
+
+### Data Section
+
+All variables are declared as 16-bit words:
+
+```assembly
+.data
+x dw 0          ; Variable x
+y dw 0          ; Variable y
+result dw 0     ; Variable result
+msg db 13,10,'$' ; Newline string
+```
+
+### Code Section
+
+The main program logic:
+
+```assembly
+.code
+main proc
+mov ax, @data   ; Initialize data segment
+mov ds, ax
+
+; Program instructions here
+
+mov ah,4ch      ; Exit program
+int 21h
+main endp
+```
+
+## Code Generation Examples
+
+### Simple Assignment
+
+```python
+# Source: let x = 10;
+# Assembly:
+mov ax, 10
+mov x, ax
+```
+
+### Addition
+
+```python
+# Source: let sum = 5 + 3;
+# Assembly:
+mov ax, 5
+push ax
+mov ax, 3
+mov bx, ax
+pop ax
+add ax, bx
+mov sum, ax
+```
+
+### Subtraction
+
+```python
+# Source: let diff = 10 - 3;
+# Assembly:
+mov ax, 10
+push ax
+mov ax, 3
+mov bx, ax
+pop ax
+sub ax, bx
+mov diff, ax
+```
+
+### Multiplication
+
+```python
+# Source: let prod = 6 * 7;
+# Assembly:
+mov ax, 6
+push ax
+mov ax, 7
+mov bx, ax
+pop ax
+imul bx
+mov prod, ax
+```
+
+### Division
+
+```python
+# Source: let quot = 10 / 2;
+# Assembly:
+mov ax, 10
+push ax
+mov ax, 2
+mov bx, ax
+pop ax
+cwd            ; Convert word to double word
+idiv bx
+mov quot, ax
+```
+
+### Variable Reference
+
+```python
+# Source: let y = x;
+# Assembly:
+mov ax, x
+mov y, ax
+```
+
+### Print Statement
+
+```python
+# Source: print x;
+# Assembly:
+mov ax, x
+call print_num
+mov ah,09h
+lea dx,msg
+int 21h
+```
+
+### Complex Expression
+
+```python
+# Source: let result = a + b * c;
+# Assembly:
+mov ax, b
+push ax
+mov ax, c
+mov bx, ax
+pop ax
+imul bx        ; b * c
+push ax
+mov ax, a
+mov bx, ax
+pop ax
+add ax, bx     ; a + (b * c)
+mov result, ax
+```
+
+## Register Usage
+
+### Primary Registers
+
+- **AX**: Accumulator - main computation register
+- **BX**: Base - used for right operand in binary operations
+- **CX**: Counter - used in print_num loop
+- **DX**: Data - used for I/O operations and division
+
+### Stack Usage
+
+The stack is used to save intermediate values in binary operations:
+
+```assembly
+; Evaluate left operand
+mov ax, [left_value]
+push ax              ; Save left value
+
+; Evaluate right operand
+mov ax, [right_value]
+mov bx, ax
+
+; Restore and compute
+pop ax               ; Restore left value
+add ax, bx           ; Perform operation
+```
+
+## Print Number Routine
+
+The generator includes a complete routine to print numbers:
+
+```assembly
+; imprimir numero en AX
+print_num proc
+push ax
+push bx
+push cx
+push dx
+
+mov cx,0
+mov bx,10
+
+cmp ax,0
+jne convert
+
+mov dl,'0'
+mov ah,02h
+int 21h
+jmp done
+
+convert:
+next_digit:
+xor dx,dx
+div bx
+push dx
+inc cx
+cmp ax,0
+jne next_digit
+
+print_loop:
+pop dx
+add dl,'0'
+mov ah,02h
+int 21h
+loop print_loop
+
+done:
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+print_num endp
+```
+
+### Print Algorithm
+
+1. **Save registers** to preserve values
+2. **Handle zero** special case
+3. **Extract digits** by dividing by 10 repeatedly
+4. **Push digits** onto stack (reverses order)
+5. **Pop and print** each digit as ASCII
+6. **Restore registers** and return
+
+## Complete Example
+
+```python
+from compfinal import Scanner, Parser, GeneradorASM
+
+# Source code
+code = """
+let a = 5;
+let b = 10;
+let c = a + b * 2;
+print c;
+"""
+
+# Compile to assembly
+scanner = Scanner(code)
+tokens = scanner.escanear_tokens()
+
+parser = Parser(tokens)
+programa = parser.parsear()
+
+generador = GeneradorASM()
+asm_code = generador.generar(programa)
+
+# Save to file
+with open('output.asm', 'w') as f:
+    f.write(asm_code)
+
+print("Assembly code generated: output.asm")
+```
+
+**Generated output.asm:**
+
+```assembly
+.model small
+.stack 100h
+
+.data
+a dw 0
+b dw 0
+c dw 0
+msg db 13,10,'$'
+
+.code
+main proc
+mov ax, @data
+mov ds, ax
+
+mov ax, 5
+mov a, ax
+
+mov ax, 10
+mov b, ax
+
+mov ax, b
+push ax
+mov ax, 2
+mov bx, ax
+pop ax
+imul bx
+push ax
+mov ax, a
+mov bx, ax
+pop ax
+add ax, bx
+mov c, ax
+
+mov ax, c
+call print_num
+mov ah,09h
+lea dx,msg
+int 21h
+
+mov ah,4ch
+int 21h
+main endp
+
+; imprimir numero en AX
+print_num proc
+push ax
+push bx
+push cx
+push dx
+mov cx,0
+mov bx,10
+cmp ax,0
+jne convert
+mov dl,'0'
+mov ah,02h
+int 21h
+jmp done
+convert:
+next_digit:
+xor dx,dx
+div bx
+push dx
+inc cx
+cmp ax,0
+jne next_digit
+print_loop:
+pop dx
+add dl,'0'
+mov ah,02h
+int 21h
+loop print_loop
+done:
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+print_num endp
+
+end main
+```
+
+## DOS Interrupts Used
+
+### INT 21h Services
+
+- **AH=02h**: Write character to standard output
+- **AH=09h**: Write string to standard output
+- **AH=4Ch**: Terminate program
+
+## Arithmetic Instructions
+
+### ADD
+
+Addition: `add ax, bx` → AX = AX + BX
+
+### SUB
+
+Subtraction: `sub ax, bx` → AX = AX - BX
+
+### IMUL
+
+Signed multiplication: `imul bx` → AX = AX × BX
+
+### IDIV
+
+Signed division:
+```assembly
+cwd        ; Extend AX to DX:AX
+idiv bx    ; AX = DX:AX ÷ BX, DX = remainder
+```
+
+## Implementation Details
+
+### Expression Evaluation
+
+Uses post-order traversal (evaluate children before parent):
+
+```python
+def generar_expr(self, expr):
+    if isinstance(expr, NumeroLiteral):
+        self.codigo.append(f"mov ax, {expr.valor}")
+    
+    elif isinstance(expr, Identificador):
+        self.codigo.append(f"mov ax, {expr.nombre}")
+    
+    elif isinstance(expr, ExpresionBinaria):
+        # 1. Evaluate left
+        self.generar_expr(expr.izquierda)
+        self.codigo.append("push ax")
+        
+        # 2. Evaluate right
+        self.generar_expr(expr.derecha)
+        self.codigo.append("mov bx, ax")
+        
+        # 3. Combine
+        self.codigo.append("pop ax")
+        # Apply operator...
+```
+
+## Limitations
+
+### Integer Only
+
+Only 16-bit signed integers are supported (-32768 to 32767).
+
+### No Optimization
+
+The code is not optimized:
+- Redundant moves are not eliminated
+- Constants are not folded
+- Dead code is not removed
+
+### Basic I/O
+
+Only integer output is supported via the print statement.
+
+## EMU8086 Compatibility
+
+The generated code is fully compatible with EMU8086 emulator:
+
+1. Save the generated code to a `.asm` file
+2. Open in EMU8086
+3. Compile and run
+4. View output in the emulator console
+
+## See Also
+
+- [Interpreter](/api/interpreter) - Alternative execution method
+- [IR Generator](/api/ir-generator) - Intermediate representation
+- [Code Generation](/components/code-generation) - Understanding x86 code generation
+- [Installation](/installation) - Setting up EMU8086 emulator

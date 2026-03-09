@@ -1,0 +1,410 @@
+---
+title: 'Using the CLI'
+description: 'Run the compiler from the command line in console mode'
+---
+
+## Overview
+
+The Mini-Compilador Educativo can be run in console mode for quick testing and batch processing. This mode accepts code input directly from the terminal and displays compilation results in real-time.
+
+## Starting Console Mode
+
+Launch the compiler in console mode using the `--consola` flag:
+
+```bash
+python compfinal.py --consola
+```
+
+You should see:
+
+```
+Modo consola del mini-compilador
+Escribe 'salir' para terminar. Finaliza el código con una línea vacía.
+
+Ingresa tu código:
+```
+
+<Info>
+Console mode is ideal for quick experiments and learning the language interactively.
+</Info>
+
+## Writing Code in Console Mode
+
+<Steps>
+  <Step title="Enter your program">
+    Type or paste your code line by line. Each statement should end with a semicolon:
+    
+    ```text
+    let x = 10;
+    let y = 20;
+    print x + y;
+    ```
+  </Step>
+  
+  <Step title="Submit with blank line">
+    Press Enter on an empty line to compile and execute:
+    
+    ```text
+    
+    ```
+    
+    The compiler will immediately process your code.
+  </Step>
+  
+  <Step title="View results">
+    The compiler displays all compilation phases and results:
+    
+    - Lexical analysis (tokens)
+    - Syntax analysis (AST)
+    - Semantic analysis
+    - Intermediate representation
+    - Program execution
+    - Assembly generation
+  </Step>
+</Steps>
+
+## Example Session
+
+Here's a complete example of using console mode:
+
+<CodeGroup>
+```bash Input
+python compfinal.py --consola
+
+# After prompt appears:
+let a = 5;
+let b = 10;
+let c = a + b * 2;
+print c;
+
+# Press Enter on blank line
+```
+
+```text Output
+═══════════════════════════════════════════════════════════════════════════
+  MINI-COMPILADOR EDUCATIVO
+═══════════════════════════════════════════════════════════════════════════
+
+[FASE 1] Análisis Léxico...
+         (Convirtiendo código en tokens)
+  ✓ Completado: 19 tokens generados
+
+[FASE 2] Análisis Sintáctico...
+         (Verificando gramática y construyendo AST)
+  ✓ Completado: 4 sentencias parseadas
+
+[FASE 3] Análisis Semántico...
+         (Verificando que el código tenga sentido)
+  ✓ Completado: 3 variables verificadas
+
+[FASE 4] Generación de Código Intermedio (IR)
+         (Three Address Code)
+    a = 5
+    b = 10
+    t0 = b * 2
+    t1 = a + t0
+    c = t1
+    print c
+
+[FASE 5] Ejecución del programa...
+              (Interpretando el AST)
+     Resultado:
+                → 25
+  ✓ Ejecución finalizada
+
+─────────────────────────────────────────────────────────────────────────
+  ✓ RESULTADO: ¡Compilación exitosa!
+```
+</CodeGroup>
+
+## Command-Line Options
+
+The compiler accepts several command-line flags:
+
+<ParamField path="--consola" type="flag">
+  Launch in console mode instead of GUI mode
+</ParamField>
+
+### Default Behavior
+
+When run without flags, the compiler launches the GUI:
+
+```bash
+python compfinal.py
+```
+
+## Controlling Output Display
+
+<Note>
+In console mode, all output phases are displayed by default. The GUI mode allows selective display through checkboxes.
+</Note>
+
+The console mode shows:
+
+<AccordionGroup>
+  <Accordion title="Phase 1: Lexical Analysis">
+    Lists all tokens extracted from the source code:
+    
+    ```
+    TOKENS (resultado del análisis léxico)
+    ════════════════════════════════════════════════════════════════
+    TIPO                 LEXEMA               LINEA    COLUMNA  VALOR          
+    ────────────────────────────────────────────────────────────────
+    LET                  let                  1        1                       
+    IDENTIFICADOR        x                    1        5                       
+    IGUAL                =                    1        7                       
+    NUMERO               10                   1        9        10             
+    PUNTO_COMA           ;                    1        11                      
+    FIN_ARCHIVO                               1        12
+    ```
+  </Accordion>
+  
+  <Accordion title="Phase 2: Syntax Analysis (AST)">
+    Shows the abstract syntax tree structure:
+    
+    ```
+    ÁRBOL DE SINTAXIS ABSTRACTA (AST)
+    ═══════════════════════════════════════════════════════════════
+    Programa
+    └── DeclaracionVariable
+        ├── nombre: 'x'
+        └── valor:
+            └── NumeroLiteral(10)
+    ```
+  </Accordion>
+  
+  <Accordion title="Phase 3: Semantic Analysis">
+    Reports semantic validation results:
+    
+    ```
+    [FASE 3] Análisis Semántico...
+             (Verificando que el código tenga sentido)
+      ✓ Completado: 1 variables verificadas
+    ```
+    
+    Or shows errors if found:
+    
+    ```
+    [FASE 3] Análisis Semántico...
+      ✗ Error semántico en línea 2, columna 13: la variable 'x' no ha sido declarada
+    ```
+  </Accordion>
+  
+  <Accordion title="Phase 4: Intermediate Representation">
+    Displays three-address code (TAC):
+    
+    ```
+    [FASE 4] Generación de Código Intermedio (IR)
+             (Three Address Code)
+        x = 10
+        y = 20
+        t0 = x + y
+        print t0
+    ```
+  </Accordion>
+  
+  <Accordion title="Phase 5: Program Execution">
+    Shows the program's output:
+    
+    ```
+    [FASE 5] Ejecución del programa...
+                  (Interpretando el AST)
+         Resultado:
+                    → 30
+      ✓ Ejecución finalizada
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Working with Multiple Programs
+
+Console mode allows you to compile multiple programs in sequence:
+
+<Steps>
+  <Step title="Compile first program">
+    ```text
+    let x = 5;
+    print x;
+    
+    ```
+    View results...
+  </Step>
+  
+  <Step title="Compile second program">
+    After the first compilation completes, the prompt returns:
+    
+    ```text
+    Ingresa tu código:
+    ```
+    
+    Enter your next program:
+    
+    ```text
+    let a = 10;
+    let b = 20;
+    print a + b;
+    
+    ```
+  </Step>
+  
+  <Step title="Continue or exit">
+    Repeat for more programs, or type `salir` to exit:
+    
+    ```text
+    salir
+    ¡Hasta luego! 👋
+    ```
+  </Step>
+</Steps>
+
+## Handling Errors
+
+When compilation errors occur, the compiler reports them and continues:
+
+### Lexical Errors
+
+```text
+Ingresa tu código:
+let x = @;
+
+[FASE 1] Análisis Léxico...
+  ✗ Error léxico en línea 1, columna 9: carácter inesperado '@'
+```
+
+### Syntax Errors
+
+```text
+Ingresa tu código:
+let x 10;
+
+[FASE 2] Análisis Sintáctico...
+  ✗ Error de sintaxis en línea 1, columna 7: Se esperaba '=' después del nombre de variable. Se encontró '10'
+```
+
+### Semantic Errors
+
+```text
+Ingresa tu código:
+let x = y + 5;
+
+[FASE 3] Análisis Semántico...
+  ✗ Error semántico en línea 1, columna 9: la variable 'y' no ha sido declarada
+```
+
+<Warning>
+After an error, you can immediately enter a new program. Each compilation is independent.
+</Warning>
+
+## Exiting Console Mode
+
+There are three ways to exit:
+
+<Tabs>
+  <Tab title="Type 'salir'">
+    At the code input prompt, type:
+    
+    ```text
+    salir
+    ```
+    
+    The compiler responds:
+    
+    ```text
+    ¡Hasta luego! 👋
+    ```
+  </Tab>
+  
+  <Tab title="Ctrl+C">
+    Press `Ctrl+C` (or `Cmd+C` on macOS) to interrupt:
+    
+    ```text
+    ^C
+    
+    ¡Hasta luego! 👋
+    ```
+  </Tab>
+  
+  <Tab title="EOF (Ctrl+D)">
+    Press `Ctrl+D` on Unix/macOS or `Ctrl+Z` on Windows:
+    
+    ```text
+    
+    ¡Hasta luego! 👋
+    ```
+  </Tab>
+</Tabs>
+
+## Tips for Effective Console Use
+
+<CardGroup cols={2}>
+  <Card title="Prepare code externally" icon="file-code">
+    Write complex programs in a text editor, then paste into the console for quick testing.
+  </Card>
+  
+  <Card title="Use comments" icon="comment">
+    Comments (`//`) help document your experiments:
+    ```text
+    // Testing precedence
+    let x = 2 + 3 * 4;
+    print x;
+    ```
+  </Card>
+  
+  <Card title="Test incrementally" icon="layer-group">
+    Build programs gradually, testing each addition:
+    ```text
+    let x = 10;
+    print x;
+    
+    ```
+    Then add more:
+    ```text
+    let x = 10;
+    let y = x * 2;
+    print y;
+    
+    ```
+  </Card>
+  
+  <Card title="Save successful programs" icon="floppy-disk">
+    Copy working programs from the terminal to save them for later reference.
+  </Card>
+</CardGroup>
+
+## Console Mode vs GUI Mode
+
+<ResponseField name="Console Mode" type="Best for:">
+  - Quick experiments
+  - Learning the language
+  - Batch testing
+  - Command-line workflows
+  - Automated scripts
+</ResponseField>
+
+<ResponseField name="GUI Mode" type="Best for:">
+  - Writing longer programs
+  - Selective output display
+  - Saving and loading files
+  - Exporting assembly code
+  - Visual program editing
+</ResponseField>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Using the GUI" icon="window" href="/guides/using-gui">
+    Learn about the graphical interface for more advanced workflows
+  </Card>
+  
+  <Card title="Interpreting Output" icon="code" href="/guides/interpreting-output">
+    Understand what each compilation phase produces
+  </Card>
+  
+  <Card title="Writing Programs" icon="pen" href="/guides/writing-programs">
+    Review language syntax and best practices
+  </Card>
+  
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Solve common compilation issues
+  </Card>
+</CardGroup>

@@ -1,0 +1,592 @@
+---
+title: 'Interpreter (AST Execution)'
+description: 'Direct execution of the Abstract Syntax Tree'
+---
+
+## Overview
+
+The **Interpreter** is the fifth phase of compilation. Instead of generating machine code, it **directly executes** the Abstract Syntax Tree, allowing programs to run immediately without a separate assembly/execution step.
+
+<Info>
+**Interpreter vs. Compiler:**
+
+**Compiler:**
+```
+Source → Tokens → AST → Assembly → Machine Code → Execute
+```
+
+**Interpreter:**
+```
+Source → Tokens → AST → Execute ✓
+```
+
+Interpreter is faster to start, but slower to run (no optimization).
+</Info>
+
+## How It Works
+
+The interpreter **walks the AST recursively**, executing each node:
+
+<Steps>
+  <Step title="Initialize">
+    Create empty runtime environment:
+    ```python
+    self.variables = {}  # Variable name → value mapping
+    ```
+  </Step>
+  
+  <Step title="Execute Statements">
+    For each statement in the program:
+    - Evaluate expressions
+    - Update variables
+    - Perform I/O (print)
+  </Step>
+  
+  <Step title="Complete">
+    All statements executed, program terminates.
+  </Step>
+</Steps>
+
+## Runtime Environment
+
+The interpreter maintains a **variable store**:
+
+```python
+class Interprete:
+    def __init__(self):
+        self.variables = {}  # Dict[str, int]
+```
+
+**Example during execution:**
+```python
+# After: let x = 5;
+variables = {'x': 5}
+
+# After: let y = 10;
+variables = {'x': 5, 'y': 10}
+
+# After: let z = x + y;
+variables = {'x': 5, 'y': 10, 'z': 15}
+```
+
+<Note>
+Semantic analysis already verified all variables are declared before use, so **no runtime checks needed**.
+</Note>
+
+## Statement Execution
+
+<Tabs>
+  <Tab title="Variable Declaration">
+    ```python
+    def ejecutar_sentencia(self, sentencia):
+        if isinstance(sentencia, DeclaracionVariable):
+            # Evaluate the right-hand expression
+            valor = self.evaluar(sentencia.expresion)
+            
+            # Store in variable map
+            self.variables[sentencia.nombre.lexema] = valor
+    ```
+    
+    **Example:**
+    ```javascript
+    let x = 5 + 3;
+    ```
+    
+    **Execution:**
+    ```python
+    1. evaluar(ExpresionBinaria(+, 5, 3)) → 8
+    2. variables['x'] = 8
+    ```
+  </Tab>
+  
+  <Tab title="Print Statement">
+    ```python
+    def ejecutar_sentencia(self, sentencia):
+        elif isinstance(sentencia, SentenciaPrint):
+            # Evaluate the expression
+            valor = self.evaluar(sentencia.expresion)
+            
+            # Print to console
+            print("     Resultado:")
+            print(f"                → {valor}")
+    ```
+    
+    **Example:**
+    ```javascript
+    print x + 1;
+    ```
+    
+    **Execution:**
+    ```python
+    1. evaluar(ExpresionBinaria(+, x, 1)):
+       - evaluar(Identificador('x')) → 5
+       - evaluar(NumeroLiteral(1)) → 1
+       - 5 + 1 → 6
+    2. print "     Resultado:"
+    3. print "                → 6"
+    ```
+    
+    **Console Output:**
+    ```
+         Resultado:
+                    → 6
+    ```
+  </Tab>
+</Tabs>
+
+## Expression Evaluation
+
+The `evaluar()` method **recursively evaluates expressions**:
+
+<Tabs>
+  <Tab title="Number Literal">
+    ```python
+    def evaluar(self, expr):
+        if isinstance(expr, NumeroLiteral):
+            return expr.valor
+    ```
+    
+    **Example:**
+    ```javascript
+    42  →  returns: 42
+    ```
+  </Tab>
+  
+  <Tab title="Identifier">
+    ```python
+    def evaluar(self, expr):
+        elif isinstance(expr, Identificador):
+            return self.variables[expr.nombre]
+    ```
+    
+    **Example:**
+    ```javascript
+    x  →  returns: self.variables['x']  →  5
+    ```
+    
+    <Note>
+    No error checking - semantic analysis already verified variable exists.
+    </Note>
+  </Tab>
+  
+  <Tab title="Binary Expression">
+    ```python
+    def evaluar(self, expr):
+        elif isinstance(expr, ExpresionBinaria):
+            # Evaluate left and right operands
+            izq = self.evaluar(expr.izquierda)
+            der = self.evaluar(expr.derecha)
+            
+            # Perform operation based on operator type
+            if expr.operador.tipo == TipoToken.SUMA:
+                return izq + der
+            elif expr.operador.tipo == TipoToken.RESTA:
+                return izq - der
+            elif expr.operador.tipo == TipoToken.MULTIPLICACION:
+                return izq * der
+            elif expr.operador.tipo == TipoToken.DIVISION:
+                return izq // der  # Integer division
+    ```
+    
+    **Example:**
+    ```javascript
+    5 + 3  →  evaluar(5) + evaluar(3)  →  5 + 3  →  8
+    ```
+  </Tab>
+  
+  <Tab title="Grouped Expression">
+    ```python
+    def evaluar(self, expr):
+        elif isinstance(expr, ExpresionAgrupada):
+            # Parentheses don't affect evaluation - just recurse
+            return self.evaluar(expr.expresion)
+    ```
+    
+    **Example:**
+    ```javascript
+    (5 + 3)  →  evaluar(5 + 3)  →  8
+    ```
+  </Tab>
+</Tabs>
+
+## Execution Examples
+
+### Simple Program
+
+<Tabs>
+  <Tab title="Code">
+    ```javascript
+    let x = 5;
+    let y = 10;
+    print x + y;
+    ```
+  </Tab>
+  
+  <Tab title="Execution Trace">
+    ```python
+    # Statement 1: let x = 5;
+    ejecutar_sentencia(DeclaracionVariable):
+      valor = evaluar(NumeroLiteral(5)):
+        return 5
+      variables['x'] = 5
+    # variables = {'x': 5}
+    
+    # Statement 2: let y = 10;
+    ejecutar_sentencia(DeclaracionVariable):
+      valor = evaluar(NumeroLiteral(10)):
+        return 10
+      variables['y'] = 10
+    # variables = {'x': 5, 'y': 10}
+    
+    # Statement 3: print x + y;
+    ejecutar_sentencia(SentenciaPrint):
+      valor = evaluar(ExpresionBinaria(+)):
+        izq = evaluar(Identificador('x')):
+          return variables['x'] → 5
+        der = evaluar(Identificador('y')):
+          return variables['y'] → 10
+        operator == SUMA
+        return 5 + 10 → 15
+      print "     Resultado:"
+      print "                → 15"
+    ```
+  </Tab>
+  
+  <Tab title="Console Output">
+    ```
+    [FASE 5] Ejecución del programa...
+                  (Interpretando el AST)
+         Resultado:
+                    → 15
+      ✓ Ejecución finalizada
+    ```
+  </Tab>
+</Tabs>
+
+### Complex Expression
+
+<Tabs>
+  <Tab title="Code">
+    ```javascript
+    let a = 5;
+    let b = 10;
+    let c = a + b * 2;
+    print c;
+    ```
+  </Tab>
+  
+  <Tab title="Execution Trace">
+    ```python
+    # Statement 1: let a = 5;
+    variables['a'] = 5
+    # variables = {'a': 5}
+    
+    # Statement 2: let b = 10;
+    variables['b'] = 10
+    # variables = {'a': 5, 'b': 10}
+    
+    # Statement 3: let c = a + b * 2;
+    evaluar(ExpresionBinaria(+)):
+      izq = evaluar(Identificador('a')):
+        return variables['a'] → 5
+      
+      der = evaluar(ExpresionBinaria(*)):
+        izq = evaluar(Identificador('b')):
+          return variables['b'] → 10
+        der = evaluar(NumeroLiteral(2)):
+          return 2
+        operator == MULTIPLICACION
+        return 10 * 2 → 20
+      
+      operator == SUMA
+      return 5 + 20 → 25
+    
+    variables['c'] = 25
+    # variables = {'a': 5, 'b': 10, 'c': 25}
+    
+    # Statement 4: print c;
+    evaluar(Identificador('c')):
+      return variables['c'] → 25
+    print "     Resultado:"
+    print "                → 25"
+    ```
+  </Tab>
+  
+  <Tab title="Console Output">
+    ```
+         Resultado:
+                    → 25
+    ```
+  </Tab>
+</Tabs>
+
+## Integer Division
+
+<Warning>
+The interpreter uses **floor division** (//), not floating-point division.
+
+**Example:**
+```javascript
+let x = 7 / 2;
+print x;
+```
+
+**Output:**
+```
+     Resultado:
+                → 3  // Not 3.5
+```
+
+This matches typical compiler behavior for integer types.
+</Warning>
+
+## Runtime Errors
+
+<Warning>
+The interpreter **does not catch runtime errors** like:
+
+1. **Division by zero (with variables):**
+   ```javascript
+   let x = 0;
+   let y = 10 / x;  // Python ZeroDivisionError
+   ```
+   
+   Semantic analysis only catches **literal** zero division.
+
+2. **Integer overflow:**
+   ```javascript
+   let x = 999999 * 999999;  // May overflow
+   ```
+   
+   Python integers have unlimited precision, but in a real compiler this would overflow.
+
+3. **Uninitialized variables:**
+   Already prevented by semantic analysis.
+</Warning>
+
+## Why Interpret the AST?
+
+<CardGroup cols={2}>
+  <Card title="Fast Development" icon="rocket">
+    Immediate execution - no assembly/linking step.
+    
+    Great for:
+    - Testing
+    - Debugging
+    - Learning
+  </Card>
+  
+  <Card title="Portability" icon="globe">
+    Runs anywhere Python runs - no architecture-specific code.
+  </Card>
+  
+  <Card title="Simplicity" icon="code">
+    Easy to implement - just recursive evaluation.
+    
+    ~50 lines of code vs. hundreds for code generator.
+  </Card>
+  
+  <Card title="Debugging" icon="bug">
+    Can inspect variables, trace execution, set breakpoints.
+    
+    Harder with compiled code.
+  </Card>
+</CardGroup>
+
+## Interpreter vs. Code Generator
+
+Both execute the **same AST**, but differently:
+
+<Tabs>
+  <Tab title="Interpreter Approach">
+    **Direct execution:**
+    
+    ```python
+    def evaluar(self, expr):
+        if isinstance(expr, ExpresionBinaria):
+            izq = self.evaluar(expr.izquierda)   # Evaluate left
+            der = self.evaluar(expr.derecha)      # Evaluate right
+            if expr.operador.tipo == TipoToken.SUMA:
+                return izq + der                  # Compute result
+    ```
+    
+    **Pros:**
+    - Simple, fast to write
+    - No separate execution phase
+    - Easy to debug
+    
+    **Cons:**
+    - Slower runtime (function calls, type checks)
+    - No optimization
+    - Requires Python runtime
+  </Tab>
+  
+  <Tab title="Code Generator Approach">
+    **Emit assembly:**
+    
+    ```python
+    def generar_expr(self, expr):
+        if isinstance(expr, ExpresionBinaria):
+            self.generar_expr(expr.izquierda)   # Generate left code
+            self.emit("push ax")                # Save left result
+            self.generar_expr(expr.derecha)      # Generate right code
+            self.emit("mov bx, ax")             # Right to BX
+            self.emit("pop ax")                 # Restore left to AX
+            self.emit("add ax, bx")             # Add
+    ```
+    
+    **Pros:**
+    - Fast runtime (native code)
+    - Can optimize
+    - Standalone executable
+    
+    **Cons:**
+    - Complex to implement
+    - Architecture-specific
+    - Longer development time
+  </Tab>
+</Tabs>
+
+## Implementation Details
+
+<Tabs>
+  <Tab title="Class Structure">
+    ```python
+    class Interprete:
+        def __init__(self):
+            self.variables = {}  # Runtime variable storage
+        
+        def ejecutar(self, programa):
+            """Execute all statements in program"""
+            for sentencia in programa.sentencias:
+                self.ejecutar_sentencia(sentencia)
+        
+        def ejecutar_sentencia(self, sentencia):
+            """Execute one statement"""
+            if isinstance(sentencia, DeclaracionVariable):
+                valor = self.evaluar(sentencia.expresion)
+                self.variables[sentencia.nombre.lexema] = valor
+            elif isinstance(sentencia, SentenciaPrint):
+                valor = self.evaluar(sentencia.expresion)
+                print(f"                → {valor}")
+        
+        def evaluar(self, expr):
+            """Recursively evaluate expression, return integer"""
+            # Dispatch by expression type
+    ```
+  </Tab>
+  
+  <Tab title="Entry Point">
+    Called from main compiler pipeline:
+    
+    ```python
+    # After semantic analysis passes...
+    interprete = Interprete()
+    interprete.ejecutar(programa)
+    ```
+    
+    Full output:
+    ```
+    [FASE 5] Ejecución del programa...
+                  (Interpretando el AST)
+         Resultado:
+                    → 25
+      ✓ Ejecución finalizada
+    ```
+  </Tab>
+</Tabs>
+
+## Performance
+
+<CardGroup cols={2}>
+  <Card title="Time Complexity" icon="clock">
+    **O(n)** where n = number of operations
+    
+    Each AST node visited/executed once.
+    
+    But **slower than compiled code** due to:
+    - Function call overhead
+    - Type checking
+    - Dictionary lookups
+  </Card>
+  
+  <Card title="Space Complexity" icon="memory">
+    **O(v + d)** where:
+    - v = number of variables
+    - d = max expression depth (recursion stack)
+    
+    No optimization, so temporary values live on call stack.
+  </Card>
+</CardGroup>
+
+## Comparison: Interpreted vs. Compiled Execution
+
+For program: `let x = 5 + 3; print x;`
+
+<Tabs>
+  <Tab title="Interpreted Execution">
+    **Runtime:**
+    ```python
+    1. evaluar(ExpresionBinaria(+)):
+         izq = evaluar(NumeroLiteral(5)) → 5
+         der = evaluar(NumeroLiteral(3)) → 3
+         return 5 + 3 → 8
+    2. variables['x'] = 8
+    3. print variables['x']
+    ```
+    
+    **Time:** ~microseconds (Python overhead)
+  </Tab>
+  
+  <Tab title="Compiled Execution">
+    **Assembly:**
+    ```asm
+    mov ax, 5      ; Load 5
+    push ax        ; Save
+    mov ax, 3      ; Load 3
+    mov bx, ax     ; To BX
+    pop ax         ; Restore 5
+    add ax, bx     ; Add → AX = 8
+    mov x, ax      ; Store
+    mov ax, x      ; Load
+    call print_num ; Print
+    ```
+    
+    **Time:** ~nanoseconds (native execution)
+  </Tab>
+</Tabs>
+
+**Speed difference:** Compiled code is **100-1000x faster** for compute-heavy tasks.
+
+But for small educational programs, interpreter is **fast enough** and **much simpler**.
+
+## Source Code Reference
+
+<Card title="Implementation" icon="code">
+  **File:** `compfinal.py`
+  
+  **Lines:** 1156-1215
+  
+  **Key Class:**
+  - `Interprete` - AST interpreter
+  
+  **Main Methods:**
+  - `ejecutar(programa)` - Entry point, executes all statements
+  - `ejecutar_sentencia(sentencia)` - Execute one statement
+  - `evaluar(expr)` - Recursively evaluate expression, return integer value
+  
+  **Data Structures:**
+  - `variables: Dict[str, int]` - Runtime variable storage
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Code Generation" icon="arrow-right" href="/components/code-generation">
+    See how the AST is converted to x86 assembly instead
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/interpreter">
+    Detailed API documentation for the Interprete class
+  </Card>
+</CardGroup>

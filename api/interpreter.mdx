@@ -1,0 +1,432 @@
+---
+title: 'Interprete'
+description: 'Interpreter that executes programs by traversing the AST'
+icon: 'play'
+---
+
+## Overview
+
+The `Interprete` (Interpreter) class executes programs by directly traversing and evaluating the Abstract Syntax Tree (AST). This is the fifth phase that provides runtime execution capabilities.
+
+## Class Definition
+
+```python
+class Interprete:
+    def __init__(self)
+```
+
+### Constructor Parameters
+
+No parameters required. The interpreter initializes with an empty variable environment.
+
+## Attributes
+
+- `variables` (dict): Dictionary mapping variable names to their runtime values
+
+## Public Methods
+
+### ejecutar()
+
+Executes the complete program by traversing the AST.
+
+```python
+def ejecutar(self, programa: Programa) -> None
+```
+
+<ParamField path="programa" type="Programa" required>
+  The AST produced by the Parser
+</ParamField>
+
+**Example:**
+```python
+scanner = Scanner("let x = 5 + 3; print x;")
+tokens = scanner.escanear_tokens()
+
+parser = Parser(tokens)
+programa = parser.parsear()
+
+interprete = Interprete()
+interprete.ejecutar(programa)
+
+# Output:
+# [FASE 5] Ejecución del programa...
+#               (Interpretando el AST)
+#      Resultado:
+#                 → 8
+#   ✓ Ejecución finalizada
+```
+
+### evaluar()
+
+Evaluates an expression and returns its numeric value.
+
+```python
+def evaluar(self, expr: Expresion) -> int
+```
+
+<ParamField path="expr" type="Expresion" required>
+  The expression to evaluate
+</ParamField>
+
+<ResponseField name="return" type="int">
+  The computed integer value of the expression
+</ResponseField>
+
+**Example:**
+```python
+interprete = Interprete()
+interprete.variables['x'] = 10
+
+# Evaluate: x + 5
+expresion = ExpresionBinaria(
+    izquierda=Identificador(token_x, 'x'),
+    operador=token_suma,
+    derecha=NumeroLiteral(token_5, 5)
+)
+
+resultado = interprete.evaluar(expresion)
+print(resultado)  # Output: 15
+```
+
+## Execution Behavior
+
+### Variable Declaration
+
+When executing `let` statements:
+1. Evaluates the right-hand side expression
+2. Stores the result in the `variables` dictionary
+
+```python
+# Source: let x = 10 + 5;
+# Execution:
+#   1. Evaluate 10 + 5 → 15
+#   2. Store: variables['x'] = 15
+```
+
+### Print Statements
+
+When executing `print` statements:
+1. Evaluates the expression
+2. Prints the result to console
+
+```python
+# Source: print x + 5;
+# Output:
+#      Resultado:
+#                 → [computed value]
+```
+
+## Expression Evaluation
+
+### Number Literals
+
+Returns the literal value directly.
+
+```python
+# Expression: 42
+# Result: 42
+```
+
+### Variable References
+
+Looks up the variable in the environment.
+
+```python
+# If variables['x'] = 10
+# Expression: x
+# Result: 10
+```
+
+**Undefined Variables:** Returns `0` if variable doesn't exist (defensive behavior).
+
+```python
+# If 'y' is not defined
+result = interprete.evaluar(Identificador(token, 'y'))
+print(result)  # Output: 0
+```
+
+### Binary Operations
+
+Evaluates both operands and applies the operator.
+
+#### Addition (+)
+
+```python
+# Expression: 5 + 3
+# Result: 8
+```
+
+#### Subtraction (-)
+
+```python
+# Expression: 10 - 4
+# Result: 6
+```
+
+#### Multiplication (*)
+
+```python
+# Expression: 6 * 7
+# Result: 42
+```
+
+#### Division (/)
+
+**Note:** Uses integer division (`//` operator).
+
+```python
+# Expression: 10 / 3
+# Result: 3 (not 3.333...)
+
+# Expression: 15 / 5
+# Result: 3
+```
+
+### Grouped Expressions
+
+Evaluates the inner expression.
+
+```python
+# Expression: (5 + 3) * 2
+# Evaluation:
+#   1. Evaluate 5 + 3 → 8
+#   2. Evaluate 8 * 2 → 16
+# Result: 16
+```
+
+## Execution Examples
+
+### Simple Program
+
+```python
+code = """
+let x = 10;
+print x;
+"""
+
+interprete = Interprete()
+interprete.ejecutar(parse(code))
+
+# Output:
+# [FASE 5] Ejecución del programa...
+#               (Interpretando el AST)
+#      Resultado:
+#                 → 10
+#   ✓ Ejecución finalizada
+```
+
+### Arithmetic Operations
+
+```python
+code = """
+let a = 5;
+let b = 10;
+let c = a + b * 2;
+print c;
+"""
+
+interprete = Interprete()
+interprete.ejecutar(parse(code))
+
+# Output:
+#      Resultado:
+#                 → 25
+# Explanation: 5 + (10 * 2) = 5 + 20 = 25
+```
+
+### Multiple Print Statements
+
+```python
+code = """
+let x = 10;
+print x;
+let y = x + 5;
+print y;
+"""
+
+interprete = Interprete()
+interprete.ejecutar(parse(code))
+
+# Output:
+#      Resultado:
+#                 → 10
+#      Resultado:
+#                 → 15
+```
+
+### Variable Reassignment
+
+```python
+code = """
+let x = 5;
+let x = 10;    // Reassigns x
+print x;
+"""
+
+interprete = Interprete()
+interprete.ejecutar(parse(code))
+
+# Output:
+#      Resultado:
+#                 → 10
+```
+
+## Implementation Details
+
+### Statement Execution
+
+```python
+def ejecutar_sentencia(self, sentencia):
+    if isinstance(sentencia, DeclaracionVariable):
+        # Evaluate and store
+        valor = self.evaluar(sentencia.expresion)
+        self.variables[sentencia.nombre.lexema] = valor
+    
+    elif isinstance(sentencia, SentenciaPrint):
+        # Evaluate and print
+        valor = self.evaluar(sentencia.expresion)
+        print(f"     Resultado:")
+        print(f"                → {valor}")
+```
+
+### Expression Evaluation
+
+```python
+def evaluar(self, expr):
+    if isinstance(expr, NumeroLiteral):
+        return expr.valor
+    
+    if isinstance(expr, Identificador):
+        return self.variables.get(expr.nombre, 0)
+    
+    if isinstance(expr, ExpresionBinaria):
+        izquierda = self.evaluar(expr.izquierda)
+        derecha = self.evaluar(expr.derecha)
+        
+        if expr.operador.lexema == "+":
+            return izquierda + derecha
+        if expr.operador.lexema == "-":
+            return izquierda - derecha
+        if expr.operador.lexema == "*":
+            return izquierda * derecha
+        if expr.operador.lexema == "/":
+            return izquierda // derecha
+    
+    if isinstance(expr, ExpresionAgrupada):
+        return self.evaluar(expr.expresion)
+```
+
+## Error Handling
+
+### Division by Zero
+
+Runtime division by zero will raise a Python `ZeroDivisionError`:
+
+```python
+code = """
+let x = 0;
+let y = 10 / x;  // Runtime error!
+"""
+
+# This will crash at runtime with ZeroDivisionError
+```
+
+**Note:** Literal division by zero is caught by the Semantic Analyzer.
+
+### Type Errors
+
+If an unsupported expression type is encountered, raises `TypeError`:
+
+```python
+raise TypeError(f"Tipo de expresion no soportado en interprete: {type(expr).__name__}")
+```
+
+## Complete Usage Example
+
+```python
+from compfinal import Scanner, Parser, AnalizadorSemantico, Interprete
+
+# Complete compilation and execution pipeline
+code = """
+let base = 10;
+let altura = 5;
+let area = base * altura / 2;
+print area;
+"""
+
+# Phase 1: Lexical Analysis
+scanner = Scanner(code)
+tokens = scanner.escanear_tokens()
+
+if scanner.errores:
+    print("Lexical errors!")
+    exit(1)
+
+# Phase 2: Syntactic Analysis
+parser = Parser(tokens)
+programa = parser.parsear()
+
+if parser.errores:
+    print("Syntax errors!")
+    exit(1)
+
+# Phase 3: Semantic Analysis
+analizador = AnalizadorSemantico()
+if not analizador.analizar(programa):
+    print("Semantic errors!")
+    exit(1)
+
+# Phase 5: Execution
+interprete = Interprete()
+interprete.ejecutar(programa)
+
+# Output:
+# [FASE 5] Ejecución del programa...
+#               (Interpretando el AST)
+#      Resultado:
+#                 → 25
+#   ✓ Ejecución finalizada
+
+# Access variables after execution
+print(f"\nVariable values:")
+for var, value in interprete.variables.items():
+    print(f"  {var} = {value}")
+
+# Output:
+# Variable values:
+#   base = 10
+#   altura = 5
+#   area = 25
+```
+
+## Integer Division Behavior
+
+The interpreter uses Python's floor division (`//`):
+
+```python
+code = """
+print 10 / 3;   // Result: 3 (not 3.333...)
+print 15 / 4;   // Result: 3 (not 3.75)
+print 20 / 5;   // Result: 4
+"""
+```
+
+## Variable Scope
+
+All variables are global:
+
+```python
+code = """
+let x = 5;
+let y = x + 10;   // Can access x
+let z = y * 2;    // Can access y
+print z;
+"""
+```
+
+## See Also
+
+- [IR Generator](/api/ir-generator) - Previous phase: intermediate code generation
+- [ASM Generator](/api/asm-generator) - Alternative backend: assembly generation
+- [Parser](/api/parser) - Understanding the AST structure
+- [Interpreter Component](/components/interpreter) - How the interpreter works

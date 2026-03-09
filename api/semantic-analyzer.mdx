@@ -1,0 +1,296 @@
+---
+title: 'AnalizadorSemantico'
+description: 'Semantic analyzer that verifies logical correctness of the code'
+icon: 'check-circle'
+---
+
+## Overview
+
+The `AnalizadorSemantico` (Semantic Analyzer) class performs semantic analysis by traversing the Abstract Syntax Tree (AST) and verifying that the code makes logical sense. It's the third phase of the compilation process.
+
+## Class Definition
+
+```python
+class AnalizadorSemantico:
+    def __init__(self)
+```
+
+### Constructor Parameters
+
+No parameters required. The analyzer initializes with an empty state.
+
+## Attributes
+
+- `variables_declaradas` (set): Set of variable names that have been declared
+- `errores` (List[str]): List of semantic errors found during analysis
+
+## Public Methods
+
+### analizar()
+
+Analyzes the complete program AST for semantic correctness.
+
+```python
+def analizar(self, programa: Programa) -> bool
+```
+
+<ParamField path="programa" type="Programa" required>
+  The AST produced by the Parser
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  Returns `True` if no semantic errors were found, `False` otherwise
+</ResponseField>
+
+**Example:**
+```python
+scanner = Scanner("let x = y + 5;")
+tokens = scanner.escanear_tokens()
+
+parser = Parser(tokens)
+programa = parser.parsear()
+
+analizador = AnalizadorSemantico()
+exito = analizador.analizar(programa)
+
+if not exito:
+    for error in analizador.errores:
+        print(error)
+# Output: Error semántico en línea 1, columna 9: la variable 'y' no ha sido declarada
+```
+
+## Semantic Checks
+
+The Semantic Analyzer performs the following validations:
+
+### 1. Undefined Variable Detection
+
+Verifies that all variables are declared before use.
+
+**Error Example:**
+```python
+code = "print x;"  # x is not declared
+
+analizador = AnalizadorSemantico()
+analizador.analizar(programa)
+# Error: la variable 'x' no ha sido declarada
+```
+
+**Correct Example:**
+```python
+code = """
+let x = 5;
+print x;
+"""
+# ✓ No error: x is declared before use
+```
+
+### 2. Variable Redeclaration Warning
+
+Warns when a variable is declared multiple times.
+
+**Warning Example:**
+```python
+code = """
+let x = 5;
+let x = 10;
+"""
+
+analizador = AnalizadorSemantico()
+analizador.analizar(programa)
+# Advertencia: la variable 'x' ya fue declarada anteriormente
+```
+
+### 3. Division by Zero Detection
+
+Detects division by zero when the divisor is a literal number.
+
+**Error Example:**
+```python
+code = "let x = 10 / 0;"
+
+analizador = AnalizadorSemantico()
+analizador.analizar(programa)
+# Error: división entre cero detectada
+```
+
+**Note:** Only literal divisions are checked:
+```python
+# This IS detected:
+let x = 10 / 0;  // Error!
+
+# This is NOT detected (runtime behavior):
+let y = 0;
+let x = 10 / y;  // No compile-time error
+```
+
+### 4. Self-Reference Detection
+
+Detects variables that reference themselves in their declaration.
+
+**Error Example:**
+```python
+code = "let x = x + 1;"
+
+analizador = AnalizadorSemantico()
+analizador.analizar(programa)
+# Error: la variable 'x' no ha sido declarada
+```
+
+This works because the analyzer:
+1. Analyzes the right-hand expression first
+2. Then registers the variable as declared
+
+## Implementation Details
+
+### Variable Declaration Order
+
+The analyzer processes declarations in the following order:
+
+1. **Check** if the variable already exists (warning if it does)
+2. **Analyze** the right-hand side expression
+3. **Register** the variable as declared
+
+This order ensures that:
+- Self-references are caught as errors
+- Variables can reference previously declared variables
+
+```python
+let a = 5;      // ✓ OK
+let b = a + 3;  // ✓ OK: 'a' is already declared
+let c = c + 1;  // ✗ ERROR: 'c' not declared yet
+```
+
+### Expression Analysis
+
+The analyzer recursively traverses expressions:
+
+```python
+def _analizar_expresion(self, expr: Expresion):
+    if isinstance(expr, NumeroLiteral):
+        pass  # Numbers are always valid
+    
+    elif isinstance(expr, Identificador):
+        # Check if variable exists
+        if expr.nombre not in self.variables_declaradas:
+            self.errores.append(...)
+    
+    elif isinstance(expr, ExpresionBinaria):
+        # Analyze both sides
+        self._analizar_expresion(expr.izquierda)
+        self._analizar_expresion(expr.derecha)
+        
+        # Check for division by zero
+        if expr.operador.tipo == TipoToken.DIVISION:
+            if isinstance(expr.derecha, NumeroLiteral) and expr.derecha.valor == 0:
+                self.errores.append(...)
+    
+    elif isinstance(expr, ExpresionAgrupada):
+        # Analyze inner expression
+        self._analizar_expresion(expr.expresion)
+```
+
+## Error Messages
+
+All error messages include:
+- Error type (semantic error or warning)
+- Line number
+- Column number
+- Descriptive message
+
+**Format:**
+```
+Error semántico en línea X, columna Y: [description]
+Advertencia en línea X, columna Y: [description]
+```
+
+## Usage Example
+
+```python
+from compfinal import Scanner, Parser, AnalizadorSemantico
+
+# Complete compilation pipeline
+code = """
+let x = 5;
+let y = x + 10;
+let z = y / 0;    // Semantic error!
+print w;           // Semantic error!
+"""
+
+# Phase 1: Lexical Analysis
+scanner = Scanner(code)
+tokens = scanner.escanear_tokens()
+
+if scanner.errores:
+    print("Lexical errors found!")
+    exit(1)
+
+# Phase 2: Syntactic Analysis
+parser = Parser(tokens)
+programa = parser.parsear()
+
+if parser.errores:
+    print("Syntax errors found!")
+    exit(1)
+
+# Phase 3: Semantic Analysis
+analizador = AnalizadorSemantico()
+exito = analizador.analizar(programa)
+
+if not exito:
+    print(f"Found {len(analizador.errores)} semantic error(s):")
+    for error in analizador.errores:
+        print(f"  - {error}")
+    exit(1)
+
+print(f"✓ Semantic analysis passed!")
+print(f"  Variables declared: {analizador.variables_declaradas}")
+```
+
+## Limitations
+
+### Runtime Errors Not Detected
+
+The semantic analyzer cannot detect errors that depend on runtime values:
+
+```python
+// These are NOT detected:
+let divisor = 0;
+let result = 10 / divisor;  // Runtime error, not compile-time
+
+let x = 5;
+let y = -3;
+let arr = x + y;  // No array support, but no error either
+```
+
+### Type Checking Not Implemented
+
+The compiler assumes all values are integers. There's no type system:
+
+```python
+// All treated as integers:
+let x = 5;        // integer
+let y = x + 10;   // integer
+let z = y * 2;    // integer
+```
+
+## Error Recovery
+
+The semantic analyzer continues checking even after finding errors:
+
+```python
+code = """
+let x = a + 5;    // Error: 'a' not declared
+let y = b + 10;   // Error: 'b' not declared
+print c;          // Error: 'c' not declared
+"""
+
+# All three errors will be reported, not just the first one
+```
+
+## See Also
+
+- [Parser](/api/parser) - Previous phase: syntactic analysis
+- [IR Generator](/api/ir-generator) - Next phase: intermediate code generation
+- [Semantic Analysis](/components/semantic-analysis) - Understanding semantic checks
+- [Error Handling](/examples/error-handling) - Handling compilation errors

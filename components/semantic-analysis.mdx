@@ -1,0 +1,540 @@
+---
+title: 'Semantic Analysis'
+description: 'Validating logical correctness of the Abstract Syntax Tree'
+---
+
+## Overview
+
+The **Semantic Analyzer** is the third phase of compilation. After the Parser creates a syntactically correct AST, the Semantic Analyzer verifies that the program **makes sense logically**.
+
+<Info>
+**Analogy:** Grammar vs. Meaning
+
+**Grammatically correct but meaningless:**
+"Colorless green ideas sleep furiously."
+
+**Semantically correct:**
+"The cat sleeps quietly."
+
+Similarly, `let x = y + 1;` is syntactically valid, but meaningless if `y` doesn't exist.
+</Info>
+
+## Semantic Checks
+
+The analyzer performs two main validations:
+
+<CardGroup cols={2}>
+  <Card title="Variable Declaration" icon="check-circle">
+    **Rule:** Variables must be declared before use.
+    
+    **Example Error:**
+    ```javascript
+    print x;  // Error: 'x' not declared
+    let x = 5;
+    ```
+  </Card>
+  
+  <Card title="Division by Zero" icon="exclamation-triangle">
+    **Rule:** Cannot divide by literal zero.
+    
+    **Example Error:**
+    ```javascript
+    let x = 10 / 0;  // Error: division by zero
+    ```
+    
+    <Note>
+    Only **literal** zero is caught. Runtime checks (e.g., `10 / x` where `x = 0`) are not performed.
+    </Note>
+  </Card>
+</CardGroup>
+
+## Symbol Table
+
+The analyzer maintains a **set of declared variables**:
+
+```python
+class AnalizadorSemantico:
+    def __init__(self):
+        self.variables_declaradas: set = set()
+        self.errores: List[str] = []
+```
+
+**Why a set?**
+- **Fast lookup:** O(1) membership testing
+- **No duplicates:** Automatically handles redeclarations
+- **Simple:** No need to store types or values (this is a simple language)
+
+### Variable Lifecycle
+
+<Steps>
+  <Step title="Declaration">
+    When encountering `let x = expression;`:
+    
+    1. Analyze the expression **first** (may reference other variables)
+    2. Add `'x'` to `variables_declaradas`
+    3. Continue to next statement
+    
+    ```python
+    def _analizar_declaracion(self, decl: DeclaracionVariable):
+        nombre = decl.nombre.lexema
+        
+        # Check expression first
+        self._analizar_expresion(decl.expresion)
+        
+        # Then register variable
+        self.variables_declaradas.add(nombre)
+    ```
+  </Step>
+  
+  <Step title="Usage">
+    When encountering an identifier in an expression:
+    
+    1. Check if variable is in `variables_declaradas`
+    2. If not, add error to `self.errores`
+    3. Continue analysis (don't stop)
+    
+    ```python
+    def _analizar_expresion(self, expr: Expresion):
+        if isinstance(expr, Identificador):
+            if expr.nombre not in self.variables_declaradas:
+                self.errores.append(
+                    f"Error semántico: la variable '{expr.nombre}' no ha sido declarada"
+                )
+    ```
+  </Step>
+</Steps>
+
+## Analysis Algorithm
+
+The analyzer **traverses the AST recursively**:
+
+```python
+def analizar(self, programa: Programa) -> bool:
+    for sentencia in programa.sentencias:
+        self._analizar_sentencia(sentencia)
+    
+    return len(self.errores) == 0
+```
+
+### Traversal Pattern
+
+<Tabs>
+  <Tab title="Statements">
+    ```python
+    def _analizar_sentencia(self, sentencia: Sentencia):
+        if isinstance(sentencia, DeclaracionVariable):
+            self._analizar_declaracion(sentencia)
+        elif isinstance(sentencia, SentenciaPrint):
+            self._analizar_print(sentencia)
+    ```
+  </Tab>
+  
+  <Tab title="Declarations">
+    ```python
+    def _analizar_declaracion(self, decl: DeclaracionVariable):
+        nombre = decl.nombre.lexema
+        
+        # Warn on redeclaration (not error)
+        if nombre in self.variables_declaradas:
+            self.errores.append(
+                f"Advertencia: la variable '{nombre}' ya fue declarada"
+            )
+        
+        # Analyze initializer expression
+        self._analizar_expresion(decl.expresion)
+        
+        # Register variable
+        self.variables_declaradas.add(nombre)
+    ```
+  </Tab>
+  
+  <Tab title="Print Statements">
+    ```python
+    def _analizar_print(self, stmt: SentenciaPrint):
+        # Just analyze the expression
+        self._analizar_expresion(stmt.expresion)
+    ```
+  </Tab>
+  
+  <Tab title="Expressions">
+    ```python
+    def _analizar_expresion(self, expr: Expresion):
+        # Literals are always valid
+        if isinstance(expr, NumeroLiteral):
+            pass
+        
+        # Variables must be declared
+        elif isinstance(expr, Identificador):
+            if expr.nombre not in self.variables_declaradas:
+                self.errores.append(...)
+        
+        # Binary: check both sides + division by zero
+        elif isinstance(expr, ExpresionBinaria):
+            self._analizar_expresion(expr.izquierda)
+            self._analizar_expresion(expr.derecha)
+            
+            # Division by literal zero?
+            if expr.operador.tipo == TipoToken.DIVISION:
+                if isinstance(expr.derecha, NumeroLiteral) and expr.derecha.valor == 0:
+                    self.errores.append(...)
+        
+        # Grouped: recurse into inner expression
+        elif isinstance(expr, ExpresionAgrupada):
+            self._analizar_expresion(expr.expresion)
+    ```
+  </Tab>
+</Tabs>
+
+## Error Examples
+
+### Undeclared Variable
+
+<Tabs>
+  <Tab title="Code">
+    ```javascript
+    let x = 5;
+    let y = x + z;  // z is not declared
+    print y;
+    ```
+  </Tab>
+  
+  <Tab title="Analysis Trace">
+    ```python
+    # Statement 1: let x = 5;
+    variables_declaradas = set()  # Empty
+    Analyze: NumeroLiteral(5) ✓
+    Add 'x' to variables_declaradas
+    variables_declaradas = {'x'}
+    
+    # Statement 2: let y = x + z;
+    Analyze left: Identificador('x')
+      → 'x' in variables_declaradas ✓
+    Analyze right: Identificador('z')
+      → 'z' in variables_declaradas ✗
+      → Error: "la variable 'z' no ha sido declarada"
+    Add 'y' to variables_declaradas (despite error)
+    variables_declaradas = {'x', 'y'}
+    
+    # Statement 3: print y;
+    Analyze: Identificador('y')
+      → 'y' in variables_declaradas ✓
+    
+    # Result: 1 error found
+    ```
+  </Tab>
+  
+  <Tab title="Error Output">
+    ```
+    Error semántico en línea 2, columna 13: la variable 'z' no ha sido declarada
+    ```
+  </Tab>
+</Tabs>
+
+### Division by Zero
+
+<Tabs>
+  <Tab title="Code">
+    ```javascript
+    let x = 10 / 0;  // Literal zero
+    let y = 10 / z;  // Variable (not caught)
+    ```
+  </Tab>
+  
+  <Tab title="Analysis Trace">
+    ```python
+    # Statement 1: let x = 10 / 0;
+    Analyze: ExpresionBinaria(/)
+      Left: NumeroLiteral(10) ✓
+      Right: NumeroLiteral(0) ✓
+      Operator: DIVISION
+      Right is NumeroLiteral with valor == 0 ✗
+      → Error: "división entre cero detectada"
+    Add 'x' to variables_declaradas
+    
+    # Statement 2: let y = 10 / z;
+    Analyze: ExpresionBinaria(/)
+      Left: NumeroLiteral(10) ✓
+      Right: Identificador('z')
+        → 'z' not in variables_declaradas ✗
+        → Error: "la variable 'z' no ha sido declarada"
+      Right is NOT NumeroLiteral
+      → Division by zero check NOT performed
+    Add 'y' to variables_declaradas
+    
+    # Result: 2 errors found
+    ```
+  </Tab>
+  
+  <Tab title="Error Output">
+    ```
+    Error semántico en línea 1, columna 10: división entre cero detectada
+    Error semántico en línea 2, columna 13: la variable 'z' no ha sido declarada
+    ```
+  </Tab>
+</Tabs>
+
+### Variable Redeclaration
+
+<Tabs>
+  <Tab title="Code">
+    ```javascript
+    let x = 5;
+    let x = 10;  // Redeclaration (warning, not error)
+    print x;
+    ```
+  </Tab>
+  
+  <Tab title="Analysis Trace">
+    ```python
+    # Statement 1: let x = 5;
+    variables_declaradas = set()
+    'x' in variables_declaradas → False
+    Add 'x'
+    variables_declaradas = {'x'}
+    
+    # Statement 2: let x = 10;
+    'x' in variables_declaradas → True
+    → Warning: "la variable 'x' ya fue declarada anteriormente"
+    Still add 'x' (idempotent in set)
+    variables_declaradas = {'x'}
+    
+    # Statement 3: print x;
+    'x' in variables_declaradas → True ✓
+    
+    # Result: 1 warning (not counted as error)
+    ```
+  </Tab>
+  
+  <Tab title="Warning Output">
+    ```
+    Advertencia en línea 2, columna 5: la variable 'x' ya fue declarada anteriormente
+    ```
+  </Tab>
+</Tabs>
+
+## Order-Dependent Analysis
+
+<Warning>
+**Variables must be declared BEFORE use** - order matters!
+</Warning>
+
+<Tabs>
+  <Tab title="Correct Order">
+    ```javascript
+    let x = 5;
+    let y = x + 1;  // ✓ x already declared
+    ```
+    
+    **Result:** No errors
+  </Tab>
+  
+  <Tab title="Wrong Order">
+    ```javascript
+    let y = x + 1;  // ✗ x not declared yet
+    let x = 5;
+    ```
+    
+    **Result:**
+    ```
+    Error semántico en línea 1, columna 9: la variable 'x' no ha sido declarada
+    ```
+  </Tab>
+  
+  <Tab title="Self-Reference">
+    ```javascript
+    let x = x + 1;  // ✗ x used in its own initializer
+    ```
+    
+    **Why this fails:**
+    
+    1. Analyzer sees `let x = ...`
+    2. Analyzes expression `x + 1` **before** adding `x` to symbol table
+    3. `x` not in `variables_declaradas` yet
+    4. Error: "la variable 'x' no ha sido declarada"
+    5. Then adds `x` to symbol table
+    
+    This is **intentional** - prevents undefined behavior.
+  </Tab>
+</Tabs>
+
+## Why Continue After Errors?
+
+The analyzer **collects all errors** in one pass:
+
+```python
+def _analizar_expresion(self, expr: Expresion):
+    if isinstance(expr, Identificador):
+        if expr.nombre not in self.variables_declaradas:
+            # Add error but DON'T raise exception
+            self.errores.append(...)
+            # Continue analyzing
+```
+
+**Benefits:**
+
+<CardGroup cols={2}>
+  <Card title="Better UX" icon="user">
+    User sees **all errors at once**, not just the first one.
+    
+    Saves time: fix multiple issues in one iteration.
+  </Card>
+  
+  <Card title="More Context" icon="list">
+    Multiple errors can reveal root cause.
+    
+    Example: 5 "undeclared variable" errors → likely missing one `let` statement.
+  </Card>
+</CardGroup>
+
+**Example:**
+
+```javascript
+let x = a + b;  // 2 errors
+let y = c * d;  // 2 errors
+print z;        // 1 error
+```
+
+**Output:**
+```
+Error semántico en línea 1, columna 9: la variable 'a' no ha sido declarada
+Error semántico en línea 1, columna 13: la variable 'b' no ha sido declarada
+Error semántico en línea 2, columna 9: la variable 'c' no ha sido declarada
+Error semántico en línea 2, columna 13: la variable 'd' no ha sido declarada
+Error semántico en línea 3, columna 7: la variable 'z' no ha sido declarada
+
+5 errores encontrados
+```
+
+User can fix all 5 declarations at once.
+
+## Limitations
+
+<Warning>
+**What the semantic analyzer CANNOT detect:**
+
+1. **Runtime division by zero:**
+   ```javascript
+   let x = 0;
+   let y = 10 / x;  // x is variable, not literal
+   ```
+   No error - only literal `0` is caught.
+
+2. **Integer overflow:**
+   ```javascript
+   let x = 999999 * 999999;  // Result exceeds int range
+   ```
+   No overflow checking.
+
+3. **Type mismatches:**
+   All values are integers - no type system to check.
+
+4. **Infinite loops:**
+   Language has no loops, but if it did, they wouldn't be analyzed.
+
+5. **Unused variables:**
+   ```javascript
+   let x = 5;  // Never used
+   ```
+   No warnings for unused variables.
+</Warning>
+
+## Complete Analysis Example
+
+<Tabs>
+  <Tab title="Valid Program">
+    ```javascript
+    let a = 5;
+    let b = 10;
+    let c = a + b * 2;
+    print c;
+    ```
+    
+    **Analysis:**
+    ```
+    ✓ Statement 1: Declare 'a', value: 5
+    ✓ Statement 2: Declare 'b', value: 10
+    ✓ Statement 3: Declare 'c', uses 'a' and 'b' (both exist)
+    ✓ Statement 4: Print 'c' (exists)
+    
+    [FASE 3] Análisis Semántico...
+             (Verificando que el código tenga sentido)
+      ✓ Completado: 3 variables verificadas
+    ```
+  </Tab>
+  
+  <Tab title="Program with Errors">
+    ```javascript
+    let x = y + 1;     // Error: 'y' undeclared
+    let y = 10 / 0;    // Error: division by zero
+    let z = x * y;     // OK: both declared
+    print w;           // Error: 'w' undeclared
+    ```
+    
+    **Analysis:**
+    ```
+    ✗ Statement 1: Variable 'y' not declared
+    ✗ Statement 2: Division by zero
+    ✓ Statement 3: Variables 'x' and 'y' exist
+    ✗ Statement 4: Variable 'w' not declared
+    
+    Errores semánticos:
+      1. Error semántico en línea 1, columna 9: la variable 'y' no ha sido declarada
+      2. Error semántico en línea 2, columna 10: división entre cero detectada
+      3. Error semántico en línea 4, columna 7: la variable 'w' no ha sido declarada
+    
+    ✗ Compilación fallida: 3 errores semánticos encontrados
+    ```
+  </Tab>
+</Tabs>
+
+## Performance
+
+<CardGroup cols={2}>
+  <Card title="Time Complexity" icon="clock">
+    **O(n)** where n = AST node count
+    
+    Each node visited exactly once in DFS traversal.
+  </Card>
+  
+  <Card title="Space Complexity" icon="memory">
+    **O(v + e)** where:
+    - v = number of declared variables
+    - e = number of errors found
+    
+    Plus O(d) for recursion stack (d = max nesting depth).
+  </Card>
+</CardGroup>
+
+## Source Code Reference
+
+<Card title="Implementation" icon="code">
+  **File:** `compfinal.py`
+  
+  **Lines:** 968-1085
+  
+  **Key Class:**
+  - `AnalizadorSemantico` - Main semantic analyzer
+  
+  **Main Methods:**
+  - `analizar(programa)` - Entry point, returns boolean success
+  - `_analizar_sentencia(sentencia)` - Dispatch by statement type
+  - `_analizar_declaracion(decl)` - Handle `let` statements
+  - `_analizar_print(stmt)` - Handle `print` statements
+  - `_analizar_expresion(expr)` - Recursive expression validation
+  
+  **Data Structures:**
+  - `variables_declaradas: set` - Symbol table
+  - `errores: List[str]` - Error accumulator
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="IR Generation" icon="arrow-right" href="/components/ir-generation">
+    See how validated AST is converted to intermediate representation
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/semantic-analyzer">
+    Detailed API documentation for the AnalizadorSemantico class
+  </Card>
+</CardGroup>

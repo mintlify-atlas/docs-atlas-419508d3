@@ -1,0 +1,732 @@
+---
+title: 'Assembly Code Generation'
+description: 'Converting AST to x86 assembly for EMU8086'
+---
+
+## Overview
+
+The **Code Generator** is the final phase of compilation. It transforms the Abstract Syntax Tree into **x86 assembly code** that can be assembled and run on EMU8086, a popular 8086 emulator.
+
+<Info>
+**Assembly Language** is the lowest level of human-readable code:
+- One-to-one mapping with machine instructions
+- Architecture-specific (x86 in this case)
+- Requires knowledge of registers, memory, and CPU operations
+</Info>
+
+## Target Architecture: x86 (8086)
+
+The generator produces code for the **Intel 8086** processor:
+
+<CardGroup cols={2}>
+  <Card title="16-bit CPU" icon="microchip">
+    - Registers are 16 bits (2 bytes)
+    - Memory addresses are 16 bits
+    - Integer range: -32,768 to 32,767 (signed)
+  </Card>
+  
+  <Card title="Segmented Memory" icon="memory">
+    - Code Segment (CS)
+    - Data Segment (DS)
+    - Stack Segment (SS)
+    - Small memory model (.model small)
+  </Card>
+  
+  <Card title="Limited Registers" icon="database">
+    - **AX** - Accumulator (primary math register)
+    - **BX** - Base (secondary operations)
+    - **CX** - Counter (loops)
+    - **DX** - Data (I/O, high word in division)
+  </Card>
+  
+  <Card title="DOS Interrupts" icon="terminal">
+    - INT 21h for system calls
+    - AH register selects function
+    - Output characters, strings, exit
+  </Card>
+</CardGroup>
+
+## Assembly Structure
+
+Generated code follows this template:
+
+```asm
+.model small        ; Memory model
+.stack 100h         ; Stack size (256 bytes)
+
+.data               ; Data segment
+; Variable declarations here
+
+.code               ; Code segment
+main proc           ; Main procedure starts
+mov ax, @data      ; Initialize data segment
+mov ds, ax
+
+; Your program here
+
+mov ah,4ch         ; Exit to DOS
+int 21h
+main endp          ; Main procedure ends
+
+; Utility procedures
+
+end main           ; Program end
+```
+
+## Code Generation Strategy
+
+The generator uses a **stack-based evaluation** approach:
+
+<Steps>
+  <Step title="Data Section">
+    Declare all variables as 16-bit words:
+    
+    ```asm
+    .data
+    x dw 0
+    y dw 0
+    result dw 0
+    ```
+  </Step>
+  
+  <Step title="Statement Translation">
+    Convert each statement to assembly:
+    - Variable declarations → assignments
+    - Print statements → call to print procedure
+  </Step>
+  
+  <Step title="Expression Evaluation">
+    Use **AX** as accumulator, **stack** for nested operations:
+    
+    1. Evaluate left operand → result in AX
+    2. Push AX (save left result)
+    3. Evaluate right operand → result in AX
+    4. Move AX to BX
+    5. Pop AX (restore left result)
+    6. Perform operation: AX op BX → AX
+  </Step>
+  
+  <Step title="Utility Procedures">
+    Include helper functions:
+    - `print_num` - Convert integer to decimal and print
+  </Step>
+</Steps>
+
+## Register Usage
+
+<Tabs>
+  <Tab title="AX - Accumulator">
+    Primary register for all expression results:
+    
+    ```asm
+    mov ax, 5       ; Load constant
+    mov ax, x       ; Load variable
+    add ax, bx      ; Addition result
+    imul bx         ; Multiplication result
+    ```
+    
+    **Always holds** the current expression value.
+  </Tab>
+  
+  <Tab title="BX - Secondary">
+    Holds right operand during binary operations:
+    
+    ```asm
+    mov bx, ax      ; Save right operand
+    pop ax          ; Get left operand
+    add ax, bx      ; Perform operation
+    ```
+  </Tab>
+  
+  <Tab title="CX - Counter">
+    Used in `print_num` for digit counting:
+    
+    ```asm
+    mov cx, 0       ; Initialize counter
+    inc cx          ; Count digits
+    loop print_loop ; Loop CX times
+    ```
+  </Tab>
+  
+  <Tab title="DX - Data/High Word">
+    Multiple uses:
+    - High word in division (`div` uses DX:AX)
+    - DOS interrupt parameter
+    - Digit extraction in `print_num`
+    
+    ```asm
+    xor dx, dx      ; Clear before division
+    div bx          ; DX:AX / BX
+    mov ah, 02h     ; DOS function
+    int 21h         ; Call DOS (uses DL)
+    ```
+  </Tab>
+</Tabs>
+
+## Expression Generation
+
+### Binary Expressions
+
+For `a + b * c`, which parses as `a + (b * c)`:
+
+<Tabs>
+  <Tab title="AST">
+    ```
+        +
+       / \
+      a   *
+         / \
+        b   c
+    ```
+  </Tab>
+  
+  <Tab title="Generated Assembly">
+    ```asm
+    ; Evaluate: a + (b * c)
+    
+    ; Load left operand (a)
+    mov ax, a
+    push ax              ; Save 'a' on stack
+    
+    ; Evaluate right side (b * c)
+    mov ax, b
+    push ax              ; Save 'b'
+    mov ax, c            ; Load 'c'
+    mov bx, ax           ; c → BX
+    pop ax               ; b → AX
+    imul bx              ; AX = b * c
+    
+    ; Perform addition
+    mov bx, ax           ; (b*c) → BX
+    pop ax               ; a → AX
+    add ax, bx           ; AX = a + (b*c)
+    ```
+  </Tab>
+  
+  <Tab title="Stack Trace">
+    ```
+    Stack: []
+    mov ax, a          → AX=5
+    push ax            → Stack: [5]
+    
+    mov ax, b          → AX=10
+    push ax            → Stack: [5, 10]
+    mov ax, c          → AX=2
+    mov bx, ax         → BX=2
+    pop ax             → AX=10, Stack: [5]
+    imul bx            → AX=20  (10*2)
+    
+    mov bx, ax         → BX=20
+    pop ax             → AX=5, Stack: []
+    add ax, bx         → AX=25  (5+20)
+    ```
+  </Tab>
+</Tabs>
+
+### Operators
+
+<Tabs>
+  <Tab title="Addition">
+    ```asm
+    ; AX = left + right
+    mov ax, left
+    push ax
+    mov ax, right
+    mov bx, ax
+    pop ax
+    add ax, bx          ; AX = AX + BX
+    ```
+  </Tab>
+  
+  <Tab title="Subtraction">
+    ```asm
+    ; AX = left - right
+    mov ax, left
+    push ax
+    mov ax, right
+    mov bx, ax
+    pop ax
+    sub ax, bx          ; AX = AX - BX
+    ```
+  </Tab>
+  
+  <Tab title="Multiplication">
+    ```asm
+    ; AX = left * right
+    mov ax, left
+    push ax
+    mov ax, right
+    mov bx, ax
+    pop ax
+    imul bx             ; AX = AX * BX (signed)
+    ```
+    
+    <Note>
+    `imul` = signed multiply
+    `mul` = unsigned multiply
+    </Note>
+  </Tab>
+  
+  <Tab title="Division">
+    ```asm
+    ; AX = left / right
+    mov ax, left
+    push ax
+    mov ax, right
+    mov bx, ax
+    pop ax
+    xor dx, dx          ; Clear DX (high word)
+    idiv bx             ; AX = DX:AX / BX (signed)
+    ```
+    
+    <Warning>
+    Division uses **DX:AX** (32-bit dividend) / BX (16-bit divisor).
+    
+    Must clear DX before dividing positive numbers.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Statement Generation
+
+<Tabs>
+  <Tab title="Variable Declaration">
+    **Source:**
+    ```javascript
+    let x = 5 + 3;
+    ```
+    
+    **Assembly:**
+    ```asm
+    ; let x = 5 + 3;
+    mov ax, 5
+    push ax
+    mov ax, 3
+    mov bx, ax
+    pop ax
+    add ax, bx
+    mov x, ax           ; Store result in variable
+    ```
+  </Tab>
+  
+  <Tab title="Print Statement">
+    **Source:**
+    ```javascript
+    print x;
+    ```
+    
+    **Assembly:**
+    ```asm
+    ; print x;
+    mov ax, x           ; Load variable
+    call print_num      ; Call print procedure
+    mov ah, 09h         ; Print newline
+    lea dx, msg
+    int 21h
+    ```
+  </Tab>
+</Tabs>
+
+## Print Number Procedure
+
+Converts integer in AX to decimal string and prints:
+
+<Tabs>
+  <Tab title="Algorithm">
+    1. **Special case:** If AX = 0, print '0' and exit
+    2. **Extract digits:** Repeatedly divide by 10
+       - Remainder = digit (pushed on stack)
+       - Quotient = remaining number
+    3. **Print digits:** Pop and print each digit
+    
+    **Example:** Print 123
+    ```
+    123 / 10 = 12 remainder 3  → push '3'
+     12 / 10 =  1 remainder 2  → push '2'
+      1 / 10 =  0 remainder 1  → push '1'
+    
+    Pop and print: '1', '2', '3' → "123"
+    ```
+  </Tab>
+  
+  <Tab title="Implementation">
+    ```asm
+    print_num proc
+        push ax
+        push bx
+        push cx
+        push dx
+        
+        mov cx, 0          ; Digit counter
+        mov bx, 10         ; Divisor
+        
+        ; Special case: zero
+        cmp ax, 0
+        jne convert
+        mov dl, '0'
+        mov ah, 02h
+        int 21h
+        jmp done
+        
+    convert:
+    next_digit:
+        xor dx, dx         ; Clear DX
+        div bx             ; DX:AX / 10
+        push dx            ; Save remainder (digit)
+        inc cx             ; Count digit
+        cmp ax, 0          ; More digits?
+        jne next_digit
+        
+    print_loop:
+        pop dx             ; Get digit
+        add dl, '0'        ; Convert to ASCII
+        mov ah, 02h        ; DOS: print char
+        int 21h
+        loop print_loop    ; Repeat CX times
+        
+    done:
+        pop dx
+        pop cx
+        pop bx
+        pop ax
+        ret
+    print_num endp
+    ```
+  </Tab>
+  
+  <Tab title="Trace: Print 25">
+    ```
+    Input: AX = 25
+    
+    First iteration:
+      DX:AX = 0:25
+      div 10  → AX=2, DX=5
+      push 5  → Stack: [5]
+      cx = 1
+    
+    Second iteration:
+      DX:AX = 0:2
+      div 10  → AX=0, DX=2
+      push 2  → Stack: [5, 2]
+      cx = 2
+    
+    AX == 0, exit loop
+    
+    Print loop (2 iterations):
+      pop dx  → DX=2, Stack: [5]
+      add dl, '0'  → DL='2' (ASCII 50)
+      int 21h  → prints '2'
+      
+      pop dx  → DX=5, Stack: []
+      add dl, '0'  → DL='5' (ASCII 53)
+      int 21h  → prints '5'
+    
+    Output: "25"
+    ```
+  </Tab>
+</Tabs>
+
+## Complete Generation Example
+
+<Tabs>
+  <Tab title="Source Code">
+    ```javascript
+    let a = 5;
+    let b = 10;
+    let c = a + b * 2;
+    print c;
+    ```
+  </Tab>
+  
+  <Tab title="Generated Assembly">
+    ```asm
+    .model small
+    .stack 100h
+    
+    .data
+    a dw 0
+    b dw 0
+    c dw 0
+    msg db 13,10,'$'
+    
+    .code
+    main proc
+    mov ax, @data
+    mov ds, ax
+    
+    ; let a = 5;
+    mov ax, 5
+    mov a, ax
+    
+    ; let b = 10;
+    mov ax, 10
+    mov b, ax
+    
+    ; let c = a + b * 2;
+    mov ax, a
+    push ax
+    mov ax, b
+    push ax
+    mov ax, 2
+    mov bx, ax
+    pop ax
+    imul bx
+    mov bx, ax
+    pop ax
+    add ax, bx
+    mov c, ax
+    
+    ; print c;
+    mov ax, c
+    call print_num
+    mov ah, 09h
+    lea dx, msg
+    int 21h
+    
+    mov ah, 4ch
+    int 21h
+    main endp
+    
+    ; [print_num procedure here]
+    
+    end main
+    ```
+  </Tab>
+  
+  <Tab title="Execution in EMU8086">
+    1. Save code to `program.asm`
+    2. Open in EMU8086
+    3. Click **Compile** (or F9)
+    4. Click **Run** (or F5)
+    5. Output window shows:
+       ```
+       25
+       ```
+  </Tab>
+</Tabs>
+
+## Data Section Generation
+
+Collects all variables and generates declarations:
+
+```python
+def generar(self, programa):
+    # Collect all variable names
+    variables = set()
+    for sentencia in programa.sentencias:
+        if isinstance(sentencia, DeclaracionVariable):
+            variables.add(sentencia.nombre.lexema)
+    
+    # Generate data section
+    codigo += ".data\n"
+    for var in sorted(variables):  # Sorted for consistency
+        codigo += f"{var} dw 0\n"
+    codigo += "msg db 13,10,'$'\n\n"  # Newline message
+```
+
+**Example:**
+```javascript
+let x = 5;
+let y = 10;
+let sum = x + y;
+```
+
+**Generates:**
+```asm
+.data
+sum dw 0
+x dw 0
+y dw 0
+msg db 13,10,'$'
+```
+
+## DOS Interrupts
+
+<Tabs>
+  <Tab title="INT 21h, AH=02h">
+    **Print single character**
+    
+    ```asm
+    mov dl, 'A'     ; Character to print
+    mov ah, 02h     ; Function: print character
+    int 21h         ; Call DOS
+    ```
+    
+    Output: `A`
+  </Tab>
+  
+  <Tab title="INT 21h, AH=09h">
+    **Print string**
+    
+    ```asm
+    msg db 'Hello$'    ; String terminated with '$'
+    ...
+    mov ah, 09h        ; Function: print string
+    lea dx, msg        ; DX = address of string
+    int 21h            ; Call DOS
+    ```
+    
+    Output: `Hello`
+    
+    <Note>
+    Strings **must** end with '$' character.
+    </Note>
+  </Tab>
+  
+  <Tab title="INT 21h, AH=4Ch">
+    **Exit program**
+    
+    ```asm
+    mov ah, 4ch     ; Function: terminate program
+    int 21h         ; Call DOS (never returns)
+    ```
+    
+    Returns control to operating system.
+  </Tab>
+</Tabs>
+
+## Optimization Opportunities
+
+<Warning>
+The current generator **does not optimize**. Opportunities:
+</Warning>
+
+<AccordionGroup>
+  <Accordion title="Constant Folding">
+    **Current:**
+    ```asm
+    mov ax, 5
+    push ax
+    mov ax, 3
+    mov bx, ax
+    pop ax
+    add ax, bx
+    mov x, ax
+    ```
+    
+    **Optimized:**
+    ```asm
+    mov ax, 8       ; Computed at compile-time
+    mov x, ax
+    ```
+  </Accordion>
+  
+  <Accordion title="Register Allocation">
+    **Current:** Always uses AX as accumulator, stack for intermediates
+    
+    **Optimized:** Use BX, CX, DX for multiple values
+    ```asm
+    mov ax, a       ; a in AX
+    mov bx, b       ; b in BX
+    mov cx, c       ; c in CX
+    imul bx, cx     ; b * c in BX
+    add ax, bx      ; a + (b*c) in AX
+    ```
+    
+    Avoids push/pop overhead.
+  </Accordion>
+  
+  <Accordion title="Strength Reduction">
+    **Current:**
+    ```asm
+    mov ax, x
+    mov bx, 2
+    imul bx         ; Multiply
+    ```
+    
+    **Optimized:**
+    ```asm
+    mov ax, x
+    shl ax, 1       ; Shift left = multiply by 2 (faster)
+    ```
+  </Accordion>
+  
+  <Accordion title="Dead Code Elimination">
+    **Current:**
+    ```asm
+    mov ax, 5
+    mov x, ax
+    mov ax, 10      ; Overwrites AX without using it
+    mov y, ax
+    ```
+    
+    **Optimized:**
+    ```asm
+    mov ax, 5
+    mov x, ax
+    mov ax, 10
+    mov y, ax
+    ```
+    
+    (No change here, but complex cases could eliminate unused code)
+  </Accordion>
+</AccordionGroup>
+
+## Limitations
+
+<Warning>
+**What the code generator CANNOT handle:**
+
+1. **Floating-point:** All arithmetic is integer
+   ```javascript
+   let x = 7 / 2;  // Result: 3, not 3.5
+   ```
+
+2. **Large numbers:** 16-bit limit (-32,768 to 32,767)
+   ```javascript
+   let x = 40000;  // Overflow!
+   ```
+
+3. **Arrays/Strings:** Only scalar integers supported
+
+4. **Control flow:** No if/while/for (language doesn't support them)
+
+5. **Functions:** No user-defined functions (only main + print_num)
+</Warning>
+
+## Source Code Reference
+
+<Card title="Implementation" icon="code">
+  **File:** `compfinal.py`
+  
+  **Lines:** 1221-1390
+  
+  **Key Class:**
+  - `GeneradorASM` - Assembly code generator
+  
+  **Main Methods:**
+  - `generar(programa)` - Entry point, returns complete .asm file as string
+  - `generar_sentencia(sentencia)` - Generate code for one statement
+  - `generar_expresion(expr)` - Generate code for expression (recursive)
+  
+  **Helper Methods:**
+  - `_recolectar_variables(programa)` - Find all variable names
+  - `_generar_encabezado()` - Generate .model, .stack, .data sections
+  - `_generar_procedimiento_print()` - Generate print_num procedure
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Try It" icon="play">
+    1. Write a program in the GUI
+    2. Click **Exportar ASM**
+    3. Save to `program.asm`
+    4. Open in EMU8086
+    5. Compile and run
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/asm-generator">
+    Detailed API documentation for the GeneradorASM class
+  </Card>
+  
+  <Card title="Examples" icon="code" href="/examples/basic-programs">
+    See more example programs and their generated assembly
+  </Card>
+  
+  <Card title="Learn x86" icon="book-open">
+    - [8086 Instruction Set](https://www.gabrielececchetti.it/Teaching/CalcolatoriElettronici/Docs/i8086_instruction_set.pdf)
+    - [EMU8086 Documentation](https://emu8086-microprocessor-emulator.en.softonic.com/)
+    - [DOS Interrupts Reference](http://www.ctyme.com/intr/int-21.htm)
+  </Card>
+</CardGroup>

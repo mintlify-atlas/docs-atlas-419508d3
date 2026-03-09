@@ -1,0 +1,297 @@
+---
+title: 'Parser'
+description: 'Syntactic analyzer that builds an Abstract Syntax Tree from tokens'
+icon: 'code-branch'
+---
+
+## Overview
+
+The `Parser` class performs syntactic analysis by verifying that tokens are in the correct order according to the language grammar, and constructs an Abstract Syntax Tree (AST). It uses a recursive descent parsing technique.
+
+## Class Definition
+
+```python
+class Parser:
+    def __init__(self, tokens: List[Token])
+```
+
+### Constructor Parameters
+
+<ParamField path="tokens" type="List[Token]" required>
+  List of tokens produced by the Scanner
+</ParamField>
+
+## Attributes
+
+- `tokens` (List[Token]): The input token list
+- `actual` (int): Index of the current token being processed
+- `errores` (List[str]): List of syntax errors found
+
+## Public Methods
+
+### parsear()
+
+Parses the entire token list and returns the Abstract Syntax Tree.
+
+```python
+def parsear(self) -> Programa
+```
+
+<ResponseField name="return" type="Programa">
+  The complete AST representing the program structure
+</ResponseField>
+
+**Example:**
+```python
+scanner = Scanner("let x = 5 + 3; print x;")
+tokens = scanner.escanear_tokens()
+
+parser = Parser(tokens)
+programa = parser.parsear()
+
+if parser.errores:
+    for error in parser.errores:
+        print(error)
+else:
+    print(f"Successfully parsed {len(programa.sentencias)} statements")
+```
+
+## Language Grammar
+
+The Parser implements the following grammar:
+
+```
+program     → statement*
+statement   → declaration | print_stmt
+declaration → "let" IDENTIFIER "=" expression ";"
+print_stmt  → "print" expression ";"
+expression  → addition
+addition    → multiplication (('+' | '-') multiplication)*
+multiplication → primary (('*' | '/') primary)*
+primary     → NUMBER | IDENTIFIER | '(' expression ')'
+```
+
+## AST Node Types
+
+### Statements
+
+#### DeclaracionVariable
+
+Represents a variable declaration.
+
+```python
+@dataclass
+class DeclaracionVariable(Sentencia):
+    token_let: Token      # The 'let' keyword token
+    nombre: Token         # The variable name token
+    expresion: Expresion  # The assigned value expression
+```
+
+**Example:** `let x = 10 + 5;`
+
+#### SentenciaPrint
+
+Represents a print statement.
+
+```python
+@dataclass
+class SentenciaPrint(Sentencia):
+    token_print: Token    # The 'print' keyword token
+    expresion: Expresion  # The expression to print
+```
+
+**Example:** `print x + 5;`
+
+### Expressions
+
+#### NumeroLiteral
+
+A literal number in the code.
+
+```python
+@dataclass
+class NumeroLiteral(Expresion):
+    token: Token  # The number token
+    valor: int    # The numeric value
+```
+
+**Example:** `42` in `let x = 42;`
+
+#### Identificador
+
+A variable reference.
+
+```python
+@dataclass
+class Identificador(Expresion):
+    token: Token   # The identifier token
+    nombre: str    # The variable name
+```
+
+**Example:** `x` in `print x;`
+
+#### ExpresionBinaria
+
+A binary operation (two operands with an operator).
+
+```python
+@dataclass
+class ExpresionBinaria(Expresion):
+    izquierda: Expresion  # Left operand
+    operador: Token       # Operator (+, -, *, /)
+    derecha: Expresion    # Right operand
+```
+
+**Example:** `5 + 3` creates:
+```
+ExpresionBinaria(
+    izquierda=NumeroLiteral(5),
+    operador=Token(SUMA, '+'),
+    derecha=NumeroLiteral(3)
+)
+```
+
+#### ExpresionAgrupada
+
+An expression in parentheses.
+
+```python
+@dataclass
+class ExpresionAgrupada(Expresion):
+    expresion: Expresion  # The inner expression
+```
+
+**Example:** `(5 + 3)` in `let x = (5 + 3) * 2;`
+
+## Operator Precedence
+
+The Parser implements correct operator precedence:
+
+1. **Highest:** Parentheses `( )`
+2. **High:** Multiplication `*`, Division `/`
+3. **Low:** Addition `+`, Subtraction `-`
+
+**Example:**
+```python
+# Expression: 3 + 4 * 2
+# Parsed as: 3 + (4 * 2) = 11
+# Not as: (3 + 4) * 2 = 14
+
+parser = Parser(tokens_from("let x = 3 + 4 * 2;"))
+ast = parser.parsear()
+# The multiplication is evaluated first due to higher precedence
+```
+
+## Error Handling
+
+### Error Recovery
+
+When a syntax error is detected:
+1. The error is recorded in the `errores` list
+2. The parser synchronizes to a safe recovery point
+3. Parsing continues to detect multiple errors
+
+```python
+code = """
+let x = ;        // Syntax error
+let y = 10;      // This will still be parsed
+"""
+
+scanner = Scanner(code)
+parser = Parser(scanner.escanear_tokens())
+programa = parser.parsear()
+
+for error in parser.errores:
+    print(error)
+# Output: Error de sintaxis en línea 1, columna 9: Se esperaba una expresión. Se encontró ';'
+```
+
+### ErrorSintaxis Exception
+
+```python
+class ErrorSintaxis(Exception):
+    pass
+```
+
+Thrown internally when a syntax error is detected. The Parser catches these exceptions and adds them to the error list.
+
+## Reserved Words Handling
+
+The reserved words `leo` and `diego` are recognized but ignored:
+
+```python
+code = """
+leo
+let x = 5;
+diego
+print x;
+"""
+
+parser = Parser(scanner.escanear_tokens())
+programa = parser.parsear()
+# Only the 'let' and 'print' statements are included in the AST
+```
+
+## Usage Example
+
+```python
+from compfinal import Scanner, Parser
+
+# Source code
+code = """
+let a = 5;
+let b = 10;
+let c = a + b * 2;
+print c;
+"""
+
+# Scan and parse
+scanner = Scanner(code)
+tokens = scanner.escanear_tokens()
+
+if scanner.errores:
+    print("Lexical errors found!")
+    exit(1)
+
+parser = Parser(tokens)
+programa = parser.parsear()
+
+if parser.errores:
+    print("Syntax errors found:")
+    for error in parser.errores:
+        print(f"  - {error}")
+    exit(1)
+
+print(f"✓ Successfully parsed {len(programa.sentencias)} statements")
+
+# Access the AST
+for sentencia in programa.sentencias:
+    if isinstance(sentencia, DeclaracionVariable):
+        print(f"Variable: {sentencia.nombre.lexema}")
+    elif isinstance(sentencia, SentenciaPrint):
+        print("Print statement found")
+```
+
+## AST Visualization
+
+The AST for `let x = 5 + 3;` looks like:
+
+```
+Programa
+└── DeclaracionVariable
+    ├── nombre: 'x'
+    └── valor:
+        └── ExpresionBinaria
+            ├── operador: '+'
+            ├── izquierda:
+            │   └── NumeroLiteral(5)
+            └── derecha:
+                └── NumeroLiteral(3)
+```
+
+## See Also
+
+- [Scanner](/api/scanner) - Previous phase: lexical analysis
+- [Semantic Analyzer](/api/semantic-analyzer) - Next phase: semantic analysis
+- [Syntactic Analysis](/components/syntactic-analysis) - Understanding AST construction
+- [Grammar](/concepts/grammar) - Detailed grammar specification

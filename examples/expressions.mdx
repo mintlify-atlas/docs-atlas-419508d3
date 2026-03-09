@@ -1,0 +1,405 @@
+---
+title: 'Complex Expressions'
+description: 'Advanced expression parsing, operator precedence, and parentheses'
+icon: 'function'
+---
+
+# Complex Expressions
+
+This page explores how the compiler handles complex arithmetic expressions, demonstrating operator precedence, associativity, and the use of parentheses.
+
+## Operator Precedence
+
+The compiler correctly implements mathematical operator precedence where multiplication and division have higher precedence than addition and subtraction.
+
+<Tabs>
+  <Tab title="Example">
+    ```javascript
+    let result = 2 + 3 * 4;
+    print result;
+    ```
+    
+    **Expected Result:** `14` (not `20`)
+    
+    The expression evaluates as `2 + (3 * 4)` because `*` has higher precedence than `+`.
+  </Tab>
+
+  <Tab title="AST">
+    The AST clearly shows the precedence:
+
+    ```
+    DeclaracionVariable
+    ├── nombre: 'result'
+    └── valor:
+        └── ExpresionBinaria
+            ├── operador: '+'
+            ├── izquierda:
+            │   └── NumeroLiteral(2)
+            └── derecha:
+                └── ExpresionBinaria
+                    ├── operador: '*'
+                    ├── izquierda:
+                    │   └── NumeroLiteral(3)
+                    └── derecha:
+                        └── NumeroLiteral(4)
+    ```
+    
+    Notice how `3 * 4` forms its own subtree that is evaluated first, then added to `2`.
+  </Tab>
+
+  <Tab title="IR">
+    The intermediate code shows the evaluation order:
+
+    ```
+    t0 = 3 * 4    // Multiplication first (t0 = 12)
+    t1 = 2 + t0   // Then addition (t1 = 14)
+    result = t1
+    print result
+    ```
+    
+    Temporary variables (`t0`, `t1`) are used to store intermediate results.
+  </Tab>
+</Tabs>
+
+---
+
+## Precedence Levels
+
+The compiler implements two precedence levels:
+
+<CardGroup cols={2}>
+  <Card title="High Precedence" icon="star">
+    **Operators:** `*` (multiplication), `/` (division)
+    
+    These are evaluated first in any expression.
+    
+    **Example:** `10 + 5 * 2` → `10 + 10` → `20`
+  </Card>
+
+  <Card title="Low Precedence" icon="equals">
+    **Operators:** `+` (addition), `-` (subtraction)
+    
+    These are evaluated after high-precedence operators.
+    
+    **Example:** `10 - 3 + 2` → `7 + 2` → `9`
+  </Card>
+</CardGroup>
+
+### Precedence Examples
+
+<CodeGroup>
+```javascript Example 1
+let x = 10 - 5 * 2;
+print x;  // Output: 0 (evaluates as 10 - 10)
+```
+
+```javascript Example 2  
+let y = 8 / 2 + 3;
+print y;  // Output: 7 (evaluates as 4 + 3)
+```
+
+```javascript Example 3
+let z = 15 - 10 / 2;
+print z;  // Output: 10 (evaluates as 15 - 5)
+```
+
+```javascript Example 4
+let w = 2 * 3 + 4 * 5;
+print w;  // Output: 26 (evaluates as 6 + 20)
+```
+</CodeGroup>
+
+---
+
+## Left Associativity
+
+Operators at the same precedence level are evaluated left-to-right (left-associative).
+
+<Steps>
+  <Step title="Addition/Subtraction">
+    ```javascript
+    let result = 10 - 3 - 2;
+    print result;  // Output: 5
+    ```
+    
+    Evaluates as `(10 - 3) - 2` = `7 - 2` = `5`
+    
+    **Not** as `10 - (3 - 2)` = `10 - 1` = `9`
+  </Step>
+
+  <Step title="Multiplication/Division">
+    ```javascript
+    let result = 20 / 2 / 2;
+    print result;  // Output: 5
+    ```
+    
+    Evaluates as `(20 / 2) / 2` = `10 / 2` = `5`
+    
+    **Not** as `20 / (2 / 2)` = `20 / 1` = `20`
+  </Step>
+
+  <Step title="Mixed Operations">
+    ```javascript
+    let result = 100 - 50 + 10 - 5;
+    print result;  // Output: 55
+    ```
+    
+    Evaluates left-to-right:
+    - `100 - 50` = `50`
+    - `50 + 10` = `60`
+    - `60 - 5` = `55`
+  </Step>
+</Steps>
+
+---
+
+## Parentheses for Grouping
+
+Parentheses `()` can override operator precedence by forcing evaluation order.
+
+### Basic Grouping
+
+<Tabs>
+  <Tab title="Without Parentheses">
+    ```javascript
+    let x = 2 + 3 * 4;
+    print x;  // Output: 14
+    ```
+    
+    Default precedence: multiplication first.
+  </Tab>
+
+  <Tab title="With Parentheses">
+    ```javascript
+    let x = (2 + 3) * 4;
+    print x;  // Output: 20
+    ```
+    
+    Parentheses force addition first, then multiplication.
+  </Tab>
+</Tabs>
+
+### AST Comparison
+
+See how parentheses change the AST structure:
+
+<CodeGroup>
+```text Without Parentheses: 2 + 3 * 4
+ExpresionBinaria
+├── operador: '+'
+├── izquierda:
+│   └── NumeroLiteral(2)
+└── derecha:
+    └── ExpresionBinaria
+        ├── operador: '*'
+        ├── izquierda:
+        │   └── NumeroLiteral(3)
+        └── derecha:
+            └── NumeroLiteral(4)
+```
+
+```text With Parentheses: (2 + 3) * 4
+ExpresionBinaria
+├── operador: '*'
+├── izquierda:
+│   └── ExpresionAgrupada
+│       └── ExpresionBinaria
+│           ├── operador: '+'
+│           ├── izquierda:
+│           │   └── NumeroLiteral(2)
+│           └── derecha:
+│               └── NumeroLiteral(3)
+└── derecha:
+    └── NumeroLiteral(4)
+```
+</CodeGroup>
+
+Notice the `ExpresionAgrupada` node that wraps the addition, forcing it to be evaluated first.
+
+---
+
+## Nested Parentheses
+
+Parentheses can be nested to create complex expressions.
+
+<Steps>
+  <Step title="Simple Nesting">
+    ```javascript
+    let x = (10 + (5 * 2));
+    print x;  // Output: 20
+    ```
+    
+    Inner parentheses evaluate first: `5 * 2` = `10`, then `10 + 10` = `20`
+  </Step>
+
+  <Step title="Multiple Nesting">
+    ```javascript
+    let x = ((10 + 5) * (3 - 1));
+    print x;  // Output: 30
+    ```
+    
+    Each parenthesized expression evaluates independently:
+    - `(10 + 5)` = `15`
+    - `(3 - 1)` = `2`
+    - `15 * 2` = `30`
+  </Step>
+
+  <Step title="Deep Nesting">
+    ```javascript
+    let x = (((20 - 10) / 2) + 5) * 2;
+    print x;  // Output: 20
+    ```
+    
+    Evaluation from innermost to outermost:
+    1. `20 - 10` = `10`
+    2. `10 / 2` = `5`
+    3. `5 + 5` = `10`
+    4. `10 * 2` = `20`
+  </Step>
+</Steps>
+
+---
+
+## Complex Expression Examples
+
+Putting it all together with real-world scenarios.
+
+### Mathematical Formula
+
+```javascript
+// Calculate: (a + b) * (c - d) / e
+let a = 10;
+let b = 5;
+let c = 8;
+let d = 3;
+let e = 3;
+let result = (a + b) * (c - d) / e;
+print result;  // Output: 25
+```
+
+**Step-by-step evaluation:**
+1. `(a + b)` → `(10 + 5)` = `15`
+2. `(c - d)` → `(8 - 3)` = `5`
+3. `15 * 5` = `75`
+4. `75 / 3` = `25`
+
+### Intermediate Code Generated
+
+```text
+a = 10
+b = 5
+c = 8
+d = 3
+e = 3
+t0 = a + b      // t0 = 15
+t1 = c - d      // t1 = 5
+t2 = t0 * t1    // t2 = 75
+t3 = t2 / e     // t3 = 25
+result = t3
+print result
+```
+
+---
+
+## Expression Parsing Details
+
+Understanding how the parser works internally.
+
+<Accordion title="Parser Grammar Rules">
+  The compiler uses recursive descent parsing with these grammar rules:
+
+  ```bnf
+  expresion    → suma_resta
+  suma_resta   → mult_div (('+' | '-') mult_div)*
+  mult_div     → primario (('*' | '/') primario)*
+  primario     → NUMERO | IDENTIFICADOR | '(' expresion ')'
+  ```
+
+  - **expresion**: Entry point for all expressions
+  - **suma_resta**: Handles addition and subtraction (lower precedence)
+  - **mult_div**: Handles multiplication and division (higher precedence)
+  - **primario**: Base cases (numbers, variables, grouped expressions)
+
+  The recursive structure automatically handles precedence and associativity correctly.
+</Accordion>
+
+<Accordion title="Parsing Steps for '2 + 3 * 4'">
+  1. `expresion()` calls `suma_resta()`
+  2. `suma_resta()` calls `mult_div()`
+  3. `mult_div()` calls `primario()` → gets `2`
+  4. Back in `suma_resta()`, sees `+` operator
+  5. Calls `mult_div()` again for the right side
+  6. `mult_div()` gets `3`, sees `*`, gets `4`
+  7. Returns `3 * 4` as a subtree
+  8. `suma_resta()` combines: `2` + `(3 * 4)`
+  
+  Result: AST with `*` deeper than `+`
+</Accordion>
+
+---
+
+## Practice Problems
+
+Test your understanding of operator precedence:
+
+<CardGroup cols={2}>
+  <Card title="Problem 1" icon="1">
+    What does this output?
+    ```javascript
+    let x = 5 + 3 * 2 - 4;
+    print x;
+    ```
+    <details>
+      <summary>Answer</summary>
+      **Output: 7**
+      
+      Evaluation: `5 + (3 * 2) - 4` = `5 + 6 - 4` = `11 - 4` = `7`
+    </details>
+  </Card>
+
+  <Card title="Problem 2" icon="2">
+    What does this output?
+    ```javascript
+    let x = (5 + 3) * (2 - 4);
+    print x;
+    ```
+    <details>
+      <summary>Answer</summary>
+      **Output: -16**
+      
+      Evaluation: `(8) * (-2)` = `-16`
+    </details>
+  </Card>
+
+  <Card title="Problem 3" icon="3">
+    What does this output?
+    ```javascript
+    let x = 20 / 4 / 2;
+    print x;
+    ```
+    <details>
+      <summary>Answer</summary>
+      **Output: 2**
+      
+      Evaluation: `(20 / 4) / 2` = `5 / 2` = `2` (integer division)
+    </details>
+  </Card>
+
+  <Card title="Problem 4" icon="4">
+    What does this output?
+    ```javascript
+    let x = 10 + 5 * 2 - 3 * 2;
+    print x;
+    ```
+    <details>
+      <summary>Answer</summary>
+      **Output: 14**
+      
+      Evaluation: `10 + (5 * 2) - (3 * 2)` = `10 + 10 - 6` = `14`
+    </details>
+  </Card>
+</CardGroup>
+
+<Warning>
+  The compiler uses **integer division** (`//` in Python). This means `7 / 2` equals `3`, not `3.5`.
+</Warning>

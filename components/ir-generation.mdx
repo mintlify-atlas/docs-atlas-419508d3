@@ -1,0 +1,684 @@
+---
+title: 'Intermediate Representation (IR) Generation'
+description: 'Converting AST to Three Address Code for optimization and code generation'
+---
+
+## Overview
+
+The **IR Generator** is the fourth phase of compilation. It transforms the Abstract Syntax Tree (AST) into **Three Address Code (TAC)**, a low-level, platform-independent representation that bridges high-level language and machine code.
+
+<Info>
+**Three Address Code** limits each instruction to:
+- At most **one operator**
+- At most **three addresses** (operands)
+
+**Example:**
+```
+// High-level: x = a + b * c
+// TAC:
+t0 = b * c
+t1 = a + t0
+x = t1
+```
+</Info>
+
+## Why Intermediate Representation?
+
+<CardGroup cols={2}>
+  <Card title="Platform Independence" icon="globe">
+    TAC is **not tied to any CPU architecture**.
+    
+    Same IR can target:
+    - x86 assembly
+    - ARM assembly
+    - LLVM IR
+    - JVM bytecode
+  </Card>
+  
+  <Card title="Optimization" icon="rocket">
+    Simpler than AST, easier to optimize:
+    - Constant folding
+    - Dead code elimination
+    - Common subexpression elimination
+    - Register allocation
+  </Card>
+  
+  <Card title="Explicit Order" icon="list-ol">
+    Operations in **sequential order** - no ambiguity about evaluation.
+    
+    AST: Tree structure (implicit ordering)
+    TAC: Linear instructions (explicit ordering)
+  </Card>
+  
+  <Card title="Simple Instructions" icon="code">
+    Each instruction has **one operation** - easy to translate to assembly.
+    
+    ```
+    t0 = a + b  → ADD instruction
+    t1 = t0 * c → MUL instruction
+    ```
+  </Card>
+</CardGroup>
+
+## TAC Instruction Format
+
+All instructions follow these patterns:
+
+<Tabs>
+  <Tab title="Binary Operation">
+    ```
+    result = operand1 operator operand2
+    ```
+    
+    **Examples:**
+    ```
+    t0 = a + b
+    t1 = x * 2
+    t2 = t0 - t1
+    ```
+  </Tab>
+  
+  <Tab title="Assignment">
+    ```
+    variable = value
+    ```
+    
+    **Examples:**
+    ```
+    x = 5
+    y = t0
+    z = a
+    ```
+  </Tab>
+  
+  <Tab title="Print">
+    ```
+    print value
+    ```
+    
+    **Examples:**
+    ```
+    print 42
+    print x
+    print t0
+    ```
+  </Tab>
+</Tabs>
+
+## Temporary Variables
+
+Complex expressions require **intermediate storage**:
+
+```python
+class GeneradorIR:
+    def __init__(self):
+        self.codigo = []         # List of TAC instructions
+        self.temp_counter = 0    # Temporary variable counter
+    
+    def nueva_temp(self):
+        temp = f"t{self.temp_counter}"
+        self.temp_counter += 1
+        return temp
+```
+
+**Naming:**
+- `t0`, `t1`, `t2`, ... (sequential integers)
+- Unique within a program
+- Never reused (simple approach - optimization could reuse)
+
+## Generation Algorithm
+
+The generator **recursively traverses the AST**:
+
+<Steps>
+  <Step title="Initialize">
+    - Create empty instruction list
+    - Reset temporary counter to 0
+  </Step>
+  
+  <Step title="Process Statements">
+    For each statement in the program:
+    - Generate IR for the statement
+    - Append instructions to list
+  </Step>
+  
+  <Step title="Emit Instructions">
+    - Return complete list of TAC instructions
+    - Print to console for visibility
+  </Step>
+</Steps>
+
+### Statement Generation
+
+<Tabs>
+  <Tab title="Variable Declaration">
+    ```python
+    def generar_sentencia(self, sentencia):
+        if isinstance(sentencia, DeclaracionVariable):
+            # Generate code for right-hand expression
+            resultado = self.generar_expr(sentencia.expresion)
+            
+            # Emit assignment
+            self.codigo.append(f"{sentencia.nombre.lexema} = {resultado}")
+    ```
+    
+    **Example:**
+    ```javascript
+    let x = 5 + 3;
+    ```
+    
+    **Generated IR:**
+    ```
+    t0 = 5 + 3
+    x = t0
+    ```
+  </Tab>
+  
+  <Tab title="Print Statement">
+    ```python
+    def generar_sentencia(self, sentencia):
+        elif isinstance(sentencia, SentenciaPrint):
+            # Generate code for expression
+            valor = self.generar_expr(sentencia.expresion)
+            
+            # Emit print instruction
+            self.codigo.append(f"print {valor}")
+    ```
+    
+    **Example:**
+    ```javascript
+    print x + 1;
+    ```
+    
+    **Generated IR:**
+    ```
+    t0 = x + 1
+    print t0
+    ```
+  </Tab>
+</Tabs>
+
+### Expression Generation
+
+<Tabs>
+  <Tab title="Number Literal">
+    ```python
+    def generar_expr(self, expr):
+        if isinstance(expr, NumeroLiteral):
+            return expr.valor  # Just return the number
+    ```
+    
+    **Example:**
+    ```javascript
+    42  →  returns: 42
+    ```
+  </Tab>
+  
+  <Tab title="Identifier">
+    ```python
+    def generar_expr(self, expr):
+        if isinstance(expr, Identificador):
+            return expr.nombre  # Just return the variable name
+    ```
+    
+    **Example:**
+    ```javascript
+    x  →  returns: "x"
+    ```
+  </Tab>
+  
+  <Tab title="Binary Expression">
+    ```python
+    def generar_expr(self, expr):
+        if isinstance(expr, ExpresionBinaria):
+            # Generate code for left side
+            izq = self.generar_expr(expr.izquierda)
+            
+            # Generate code for right side
+            der = self.generar_expr(expr.derecha)
+            
+            # Create temporary for result
+            temp = self.nueva_temp()
+            
+            # Emit operation
+            self.codigo.append(f"{temp} = {izq} {expr.operador.lexema} {der}")
+            
+            # Return temporary name
+            return temp
+    ```
+    
+    **Example:**
+    ```javascript
+    a + b  →  emits: "t0 = a + b"
+              returns: "t0"
+    ```
+  </Tab>
+  
+  <Tab title="Grouped Expression">
+    ```python
+    def generar_expr(self, expr):
+        if isinstance(expr, ExpresionAgrupada):
+            # Parentheses don't affect TAC - just recurse
+            return self.generar_expr(expr.expresion)
+    ```
+    
+    **Example:**
+    ```javascript
+    (5 + 3)  →  same as: 5 + 3
+    ```
+    
+    Parentheses only affect parsing, not IR generation.
+  </Tab>
+</Tabs>
+
+## Generation Examples
+
+### Simple Expression
+
+<Tabs>
+  <Tab title="Code">
+    ```javascript
+    let x = 5 + 3;
+    ```
+  </Tab>
+  
+  <Tab title="AST">
+    ```
+    DeclaracionVariable
+    ├── nombre: 'x'
+    └── expresion:
+        └── ExpresionBinaria(+)
+            ├── izquierda: NumeroLiteral(5)
+            └── derecha: NumeroLiteral(3)
+    ```
+  </Tab>
+  
+  <Tab title="Generation Trace">
+    ```python
+    generar_sentencia(DeclaracionVariable):
+      resultado = generar_expr(ExpresionBinaria(+)):
+        izq = generar_expr(NumeroLiteral(5)):
+          return 5
+        der = generar_expr(NumeroLiteral(3)):
+          return 3
+        temp = nueva_temp()  → "t0"
+        emit: "t0 = 5 + 3"
+        return "t0"
+      emit: "x = t0"
+    ```
+  </Tab>
+  
+  <Tab title="Generated IR">
+    ```
+    t0 = 5 + 3
+    x = t0
+    ```
+  </Tab>
+</Tabs>
+
+### Nested Expression
+
+<Tabs>
+  <Tab title="Code">
+    ```javascript
+    let y = a + b * c;
+    ```
+  </Tab>
+  
+  <Tab title="AST">
+    ```
+    DeclaracionVariable
+    ├── nombre: 'y'
+    └── expresion:
+        └── ExpresionBinaria(+)
+            ├── izquierda: Identificador('a')
+            └── derecha:
+                └── ExpresionBinaria(*)
+                    ├── izquierda: Identificador('b')
+                    └── derecha: Identificador('c')
+    ```
+  </Tab>
+  
+  <Tab title="Generation Trace">
+    ```python
+    generar_sentencia(DeclaracionVariable):
+      resultado = generar_expr(ExpresionBinaria(+)):
+        izq = generar_expr(Identificador('a')):
+          return "a"
+        der = generar_expr(ExpresionBinaria(*)):
+          izq = generar_expr(Identificador('b')):
+            return "b"
+          der = generar_expr(Identificador('c')):
+            return "c"
+          temp = nueva_temp()  → "t0"
+          emit: "t0 = b * c"
+          return "t0"
+        temp = nueva_temp()  → "t1"
+        emit: "t1 = a + t0"
+        return "t1"
+      emit: "y = t1"
+    ```
+  </Tab>
+  
+  <Tab title="Generated IR">
+    ```
+    t0 = b * c
+    t1 = a + t0
+    y = t1
+    ```
+    
+    **Note:** Multiplication happens first (in `t0`), then addition (in `t1`).
+    The AST structure ensures correct order.
+  </Tab>
+</Tabs>
+
+### Complete Program
+
+<Tabs>
+  <Tab title="Code">
+    ```javascript
+    let a = 5;
+    let b = 10;
+    let c = a + b * 2;
+    print c;
+    ```
+  </Tab>
+  
+  <Tab title="Generated IR">
+    ```
+    a = 5
+    b = 10
+    t0 = b * 2
+    t1 = a + t0
+    c = t1
+    print c
+    ```
+  </Tab>
+  
+  <Tab title="Output">
+    ```
+    [FASE 4] Generación de Código Intermedio (IR)
+             (Three Address Code)
+        a = 5
+        b = 10
+        t0 = b * 2
+        t1 = a + t0
+        c = t1
+        print c
+    ```
+  </Tab>
+</Tabs>
+
+## Optimization Opportunities
+
+<Warning>
+The current implementation **does not optimize**. Here are potential optimizations:
+</Warning>
+
+<AccordionGroup>
+  <Accordion title="Constant Folding">
+    **Before:**
+    ```
+    t0 = 5 + 3
+    x = t0
+    ```
+    
+    **After:**
+    ```
+    x = 8
+    ```
+    
+    Evaluate constant expressions at compile-time.
+  </Accordion>
+  
+  <Accordion title="Copy Propagation">
+    **Before:**
+    ```
+    t0 = a
+    t1 = t0 + b
+    ```
+    
+    **After:**
+    ```
+    t1 = a + b
+    ```
+    
+    Replace copy with original variable.
+  </Accordion>
+  
+  <Accordion title="Dead Code Elimination">
+    **Before:**
+    ```
+    t0 = a + b
+    t1 = c * d  // t1 never used
+    x = t0
+    ```
+    
+    **After:**
+    ```
+    t0 = a + b
+    x = t0
+    ```
+    
+    Remove unused computations.
+  </Accordion>
+  
+  <Accordion title="Temporary Reuse">
+    **Before:**
+    ```
+    t0 = a + b
+    x = t0
+    t1 = c + d  // Could reuse t0
+    y = t1
+    ```
+    
+    **After:**
+    ```
+    t0 = a + b
+    x = t0
+    t0 = c + d  // Reuse t0 (x already assigned)
+    y = t0
+    ```
+    
+    Reduce number of temporaries.
+  </Accordion>
+</AccordionGroup>
+
+## Comparison: AST vs. IR
+
+For expression `a + b * c`:
+
+<Tabs>
+  <Tab title="AST Representation">
+    ```
+    ExpresionBinaria(+)
+    ├── izquierda: Identificador('a')
+    └── derecha:
+        └── ExpresionBinaria(*)
+            ├── izquierda: Identificador('b')
+            └── derecha: Identificador('c')
+    ```
+    
+    **Characteristics:**
+    - Tree structure (hierarchical)
+    - Implicit evaluation order (post-order traversal)
+    - High-level (close to source code)
+    - Good for semantic analysis
+  </Tab>
+  
+  <Tab title="IR Representation">
+    ```
+    t0 = b * c
+    t1 = a + t0
+    ```
+    
+    **Characteristics:**
+    - Linear sequence (flat)
+    - Explicit evaluation order (line-by-line)
+    - Low-level (close to assembly)
+    - Good for optimization and code generation
+  </Tab>
+</Tabs>
+
+## Use Cases for IR
+
+<CardGroup cols={2}>
+  <Card title="Code Generation" icon="microchip">
+    Each TAC instruction maps directly to assembly:
+    
+    ```
+    t0 = b * c  →  MOV AX, b
+                   IMUL c
+                   MOV t0, AX
+    ```
+  </Card>
+  
+  <Card title="Optimization" icon="gauge-high">
+    Simple structure makes optimization easier:
+    
+    - Analyze dependencies
+    - Detect patterns
+    - Apply transformations
+  </Card>
+  
+  <Card title="Interpretation" icon="play">
+    Can execute IR directly:
+    
+    ```python
+    for instruction in ir_code:
+        parse and execute instruction
+    ```
+    
+    (Though this compiler interprets AST, not IR)
+  </Card>
+  
+  <Card title="Multi-Target" icon="sitemap">
+    Generate different backends from same IR:
+    
+    - x86 assembly
+    - ARM assembly
+    - LLVM IR
+    - C code
+  </Card>
+</CardGroup>
+
+## Implementation Details
+
+<Tabs>
+  <Tab title="Class Structure">
+    ```python
+    class GeneradorIR:
+        def __init__(self):
+            self.codigo = []         # Instruction list
+            self.temp_counter = 0    # Temporary counter
+        
+        def nueva_temp(self):
+            """Generate unique temporary name"""
+            temp = f"t{self.temp_counter}"
+            self.temp_counter += 1
+            return temp
+        
+        def generar(self, programa):
+            """Entry point - process program"""
+            for sentencia in programa.sentencias:
+                self.generar_sentencia(sentencia)
+            return self.codigo
+        
+        def generar_sentencia(self, sentencia):
+            """Process one statement"""
+            # Dispatch by type
+        
+        def generar_expr(self, expr):
+            """Process one expression"""
+            # Dispatch by type, return result
+    ```
+  </Tab>
+  
+  <Tab title="Instruction Storage">
+    Instructions stored as **strings in a list**:
+    
+    ```python
+    self.codigo = [
+        "a = 5",
+        "b = 10",
+        "t0 = b * 2",
+        "t1 = a + t0",
+        "c = t1",
+        "print c"
+    ]
+    ```
+    
+    **Pros:**
+    - Simple implementation
+    - Easy to print/debug
+    - Human-readable
+    
+    **Cons:**
+    - No structure for analysis
+    - Hard to optimize
+    - Must parse strings to interpret
+    
+    **Better approach:** Use instruction objects:
+    ```python
+    @dataclass
+    class IRInstruction:
+        op: str           # "add", "mul", "assign", "print"
+        dest: str         # Result destination
+        arg1: str = None
+        arg2: str = None
+    ```
+  </Tab>
+</Tabs>
+
+## Performance
+
+<CardGroup cols={2}>
+  <Card title="Time Complexity" icon="clock">
+    **O(n)** where n = AST node count
+    
+    Each node visited once in DFS traversal.
+  </Card>
+  
+  <Card title="Space Complexity" icon="memory">
+    **O(n)** for instruction list
+    
+    Roughly one instruction per operation in source code.
+  </Card>
+</CardGroup>
+
+## Source Code Reference
+
+<Card title="Implementation" icon="code">
+  **File:** `compfinal.py`
+  
+  **Lines:** 1090-1149
+  
+  **Key Class:**
+  - `GeneradorIR` - IR generator
+  
+  **Main Methods:**
+  - `generar(programa)` - Entry point, returns instruction list
+  - `generar_sentencia(sentencia)` - Process statement
+  - `generar_expr(expr)` - Process expression, return result operand
+  - `nueva_temp()` - Generate unique temporary name
+  
+  **Data Structures:**
+  - `codigo: List[str]` - TAC instruction list
+  - `temp_counter: int` - Temporary variable counter
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Interpreter" icon="arrow-right" href="/components/interpreter">
+    See how the AST is directly executed
+  </Card>
+  
+  <Card title="Code Generation" icon="arrow-right" href="/components/code-generation">
+    See how IR/AST is converted to x86 assembly
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/ir-generator">
+    Detailed API documentation for the GeneradorIR class
+  </Card>
+</CardGroup>

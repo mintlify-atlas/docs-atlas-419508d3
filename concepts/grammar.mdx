@@ -1,0 +1,513 @@
+---
+title: 'Language Grammar'
+description: 'Complete EBNF specification and syntax rules for the educational compiler language'
+---
+
+## Grammar Overview
+
+The Mini-Compilador Educativo implements a simple imperative language with variable declarations, arithmetic expressions, and print statements. The grammar is designed for educational clarity while demonstrating core compilation concepts.
+
+## EBNF Specification
+
+<Note>
+The following grammar is extracted from the source code (`compfinal.py` and `readme.md`) and defines the complete syntax accepted by the compiler.
+</Note>
+
+```ebnf
+programa    ::= sentencia*
+sentencia   ::= declaracion | print_stmt
+declaracion ::= "let" IDENTIFICADOR "=" expresion ";"
+print_stmt  ::= "print" expresion ";"
+expresion   ::= suma_resta
+suma_resta  ::= mult_div ( ("+" | "-") mult_div )*
+mult_div    ::= primario ( ("*" | "/") primario )*
+primario    ::= NUMERO | IDENTIFICADOR | "(" expresion ")"
+```
+
+### Grammar Notation
+
+<AccordionGroup>
+  <Accordion title="EBNF Symbols Explained">
+    - `::=` - "is defined as"
+    - `|` - alternation (or)
+    - `*` - zero or more repetitions
+    - `+` - one or more repetitions (not used in this grammar)
+    - `?` - optional (zero or one)
+    - `()` - grouping
+    - `"..."` - terminal symbol (literal keyword or operator)
+    - `UPPERCASE` - token type (terminal from lexer)
+  </Accordion>
+</AccordionGroup>
+
+## Token Types
+
+The lexer recognizes the following token categories:
+
+### Keywords (Reserved Words)
+
+<CardGroup cols={2}>
+  <Card title="let" icon="file-code">
+    Declares a new variable
+    
+    **Type:** `TipoToken.LET`  
+    **Usage:** `let x = 10;`
+  </Card>
+  
+  <Card title="print" icon="print">
+    Outputs expression value
+    
+    **Type:** `TipoToken.PRINT`  
+    **Usage:** `print x + 5;`
+  </Card>
+  
+  <Card title="leo" icon="tag">
+    Reserved word (no operation)
+    
+    **Type:** `TipoToken.LEO`  
+    **Note:** Recognized but ignored
+  </Card>
+  
+  <Card title="diego" icon="tag">
+    Reserved word (no operation)
+    
+    **Type:** `TipoToken.DIEGO`  
+    **Note:** Recognized but ignored
+  </Card>
+</CardGroup>
+
+### Literals
+
+<Tabs>
+  <Tab title="Numbers">
+    **Token Type:** `TipoToken.NUMERO`  
+    **Pattern:** `[0-9]+`  
+    **Value Type:** Integer
+    
+    ```python
+    # Valid numbers
+    0
+    42
+    1234567890
+    ```
+    
+    <Warning>
+    The language does NOT support:
+    - Negative literals (use subtraction: `0 - 5`)
+    - Floating-point numbers
+    - Hexadecimal/octal/binary notation
+    </Warning>
+  </Tab>
+  
+  <Tab title="Identifiers">
+    **Token Type:** `TipoToken.IDENTIFICADOR`  
+    **Pattern:** `[a-zA-Z_][a-zA-Z0-9_]*`
+    
+    ```python
+    # Valid identifiers
+    x
+    myVariable
+    sum_total
+    _private
+    counter1
+    ```
+    
+    **Rules:**
+    - Must start with letter or underscore
+    - Can contain letters, digits, underscores
+    - Cannot be a reserved word (`let`, `print`, `leo`, `diego`)
+    - Case-sensitive
+  </Tab>
+</Tabs>
+
+### Operators
+
+<CardGroup cols={2}>
+  <Card title="+ (Addition)" icon="plus">
+    **Type:** `TipoToken.SUMA`  
+    **Precedence:** 1 (lowest)  
+    **Associativity:** Left-to-right
+  </Card>
+  
+  <Card title="- (Subtraction)" icon="minus">
+    **Type:** `TipoToken.RESTA`  
+    **Precedence:** 1 (lowest)  
+    **Associativity:** Left-to-right
+  </Card>
+  
+  <Card title="* (Multiplication)" icon="times">
+    **Type:** `TipoToken.MULTIPLICACION`  
+    **Precedence:** 2 (higher)  
+    **Associativity:** Left-to-right
+  </Card>
+  
+  <Card title="/ (Division)" icon="divide">
+    **Type:** `TipoToken.DIVISION`  
+    **Precedence:** 2 (higher)  
+    **Associativity:** Left-to-right  
+    **Note:** Integer division (floor)
+  </Card>
+  
+  <Card title="= (Assignment)" icon="equals">
+    **Type:** `TipoToken.IGUAL`  
+    **Context:** Only in `let` statements  
+    **Not:** Used for comparison
+  </Card>
+</CardGroup>
+
+### Delimiters
+
+| Symbol | Token Type | Purpose | Example |
+|--------|------------|---------|--------|
+| `(` | `PAREN_IZQ` | Group expressions | `(5 + 3)` |
+| `)` | `PAREN_DER` | Close grouping | `(5 + 3) * 2` |
+| `;` | `PUNTO_COMA` | Terminate statements | `let x = 5;` |
+
+### Special Tokens
+
+- **`FIN_ARCHIVO`** - Marks end of input
+- **`ERROR`** - Invalid character encountered
+
+## Grammar Rules Explained
+
+### Program Structure
+
+```ebnf
+programa ::= sentencia*
+```
+
+A program consists of zero or more statements. There is no `main` function or program wrapper.
+
+<CodeGroup>
+```text Valid Program
+let a = 5;
+let b = 10;
+print a + b;
+```
+
+```text Empty Program
+// This is valid (no statements)
+```
+</CodeGroup>
+
+### Statements
+
+```ebnf
+sentencia ::= declaracion | print_stmt
+```
+
+Two types of statements are supported:
+
+<Tabs>
+  <Tab title="Variable Declaration">
+    ```ebnf
+    declaracion ::= "let" IDENTIFICADOR "=" expresion ";"
+    ```
+    
+    Declares a new variable and assigns it a value.
+    
+    **Examples:**
+    ```javascript
+    let x = 10;
+    let sum = x + 5;
+    let result = (a + b) * 2;
+    ```
+    
+    **Semantics:**
+    - Creates new variable in current scope
+    - Evaluates expression on right-hand side
+    - Assigns result to variable
+    - Variables can be redeclared (warning issued)
+  </Tab>
+  
+  <Tab title="Print Statement">
+    ```ebnf
+    print_stmt ::= "print" expresion ";"
+    ```
+    
+    Evaluates expression and outputs the result.
+    
+    **Examples:**
+    ```javascript
+    print 42;
+    print x;
+    print (10 + 20) / 3;
+    ```
+    
+    **Output:**
+    - Prints integer result to console
+    - Followed by newline
+  </Tab>
+</Tabs>
+
+### Expressions
+
+```ebnf
+expresion   ::= suma_resta
+suma_resta  ::= mult_div ( ("+" | "-") mult_div )*
+mult_div    ::= primario ( ("*" | "/") primario )*
+primario    ::= NUMERO | IDENTIFICADOR | "(" expresion ")"
+```
+
+The expression grammar implements **operator precedence** through grammar nesting:
+
+<Steps>
+  <Step title="Primary Expressions (Highest Precedence)">
+    ```ebnf
+    primario ::= NUMERO | IDENTIFICADOR | "(" expresion ")"
+    ```
+    
+    Base values:
+    - Numeric literals: `42`
+    - Variable references: `x`
+    - Parenthesized expressions: `(5 + 3)`
+  </Step>
+  
+  <Step title="Multiplicative Operators">
+    ```ebnf
+    mult_div ::= primario ( ("*" | "/") primario )*
+    ```
+    
+    Multiplication and division bind tighter than addition/subtraction.
+    
+    **Example:** `2 + 3 * 4` parses as `2 + (3 * 4)` = 14
+  </Step>
+  
+  <Step title="Additive Operators (Lowest Precedence)">
+    ```ebnf
+    suma_resta ::= mult_div ( ("+" | "-") mult_div )*
+    ```
+    
+    Addition and subtraction evaluated last.
+    
+    **Example:** `10 - 2 * 3` parses as `10 - (2 * 3)` = 4
+  </Step>
+</Steps>
+
+## Operator Precedence Table
+
+| Precedence | Operators | Associativity | Example | Result |
+|------------|-----------|---------------|---------|--------|
+| 1 (highest) | `()` | - | `(5 + 3) * 2` | 16 |
+| 2 | `*` `/` | Left-to-right | `10 / 2 / 5` | 1 |
+| 3 (lowest) | `+` `-` | Left-to-right | `10 - 3 + 2` | 9 |
+
+<Note>
+All binary operators are **left-associative**, meaning `a op b op c` is evaluated as `(a op b) op c`.
+
+Example: `10 - 3 - 2` = `(10 - 3) - 2` = `5`
+</Note>
+
+## Syntax Examples
+
+### Valid Programs
+
+<CodeGroup>
+```javascript Basic Arithmetic
+let a = 5;
+let b = 10;
+let c = a + b;
+print c;  // Outputs: 15
+```
+
+```javascript Expression Precedence
+let x = 2 + 3 * 4;
+print x;  // Outputs: 14 (not 20)
+```
+
+```javascript Parentheses
+let y = (2 + 3) * 4;
+print y;  // Outputs: 20
+```
+
+```javascript Complex Expression
+let result = (10 + 5) * 2 - 8 / 4;
+print result;  // Outputs: 28
+```
+
+```javascript Using Variables
+let base = 10;
+let height = 5;
+let area = base * height / 2;
+print area;  // Outputs: 25
+```
+</CodeGroup>
+
+### Common Syntax Errors
+
+<AccordionGroup>
+  <Accordion title="Missing Semicolon">
+    ```javascript
+    let x = 5  // ❌ Error: expected ';'
+    ```
+    
+    **Fix:**
+    ```javascript
+    let x = 5;  // ✓
+    ```
+  </Accordion>
+  
+  <Accordion title="Invalid Variable Declaration">
+    ```javascript
+    x = 10;  // ❌ Error: expected 'let' or 'print'
+    ```
+    
+    **Fix:**
+    ```javascript
+    let x = 10;  // ✓
+    ```
+  </Accordion>
+  
+  <Accordion title="Missing Assignment Operator">
+    ```javascript
+    let x 10;  // ❌ Error: expected '=' after variable name
+    ```
+    
+    **Fix:**
+    ```javascript
+    let x = 10;  // ✓
+    ```
+  </Accordion>
+  
+  <Accordion title="Unmatched Parentheses">
+    ```javascript
+    let x = (5 + 3;  // ❌ Error: expected ')'
+    ```
+    
+    **Fix:**
+    ```javascript
+    let x = (5 + 3);  // ✓
+    ```
+  </Accordion>
+  
+  <Accordion title="Using Reserved Words as Identifiers">
+    ```javascript
+    let let = 5;  // ❌ Error: 'let' is a reserved word
+    let print = 10;  // ❌ Error: 'print' is a reserved word
+    ```
+    
+    **Fix:**
+    ```javascript
+    let myLet = 5;  // ✓
+    let printValue = 10;  // ✓
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Comments
+
+```javascript
+// This is a single-line comment
+let x = 5;  // Comments can appear after code
+```
+
+<Info>
+**Comment Syntax:** `//` begins a comment that extends to end of line
+
+**Implementation:** Comments are handled in the lexer. When `//` is detected, the scanner advances to the next newline without generating tokens.
+
+**Source:** `compfinal.py:319-327`
+</Info>
+
+## Semantic Constraints
+
+Beyond syntax, the semantic analyzer enforces:
+
+<CardGroup cols={2}>
+  <Card title="Variable Declaration" icon="code">
+    Variables must be declared with `let` before use.
+    
+    ```javascript
+    print x;  // ❌ Error: variable 'x' not declared
+    let x = 5;
+    print x;  // ✓
+    ```
+  </Card>
+  
+  <Card title="Division by Zero" icon="exclamation-triangle">
+    Literal division by zero is caught at compile time.
+    
+    ```javascript
+    let x = 10 / 0;  // ❌ Error: division by zero
+    ```
+    
+    <Note>
+    Only **literal** zeros are detected. Runtime division by zero (e.g., `10 / x` where `x` is 0) is not checked.
+    </Note>
+  </Card>
+</CardGroup>
+
+## Grammar Design Rationale
+
+<Tabs>
+  <Tab title="Simplicity">
+    The grammar is intentionally minimal to focus on core compilation concepts:
+    - No control flow (if/while/for)
+    - No functions or procedures
+    - No data types beyond integers
+    - No arrays or data structures
+    
+    This allows students to understand the full pipeline without getting lost in language complexity.
+  </Tab>
+  
+  <Tab title="Precedence by Structure">
+    Rather than using a precedence table, the grammar encodes precedence through nesting:
+    
+    ```
+    expresion → suma_resta → mult_div → primario
+    ```
+    
+    Deeper nesting = higher precedence. This creates a natural recursive descent parser structure.
+  </Tab>
+  
+  <Tab title="Left Recursion Elimination">
+    The grammar avoids direct left recursion to enable recursive descent parsing:
+    
+    ❌ Left-recursive (problematic):
+    ```ebnf
+    suma_resta ::= suma_resta "+" mult_div | mult_div
+    ```
+    
+    ✓ Right-recursive with iteration:
+    ```ebnf
+    suma_resta ::= mult_div ( ("+" | "-") mult_div )*
+    ```
+  </Tab>
+  
+  <Tab title="Extensibility">
+    The grammar is designed for easy extension:
+    - Add new statement types to `sentencia`
+    - Add new operators at appropriate precedence levels
+    - Add new primary expressions (strings, booleans, etc.)
+  </Tab>
+</Tabs>
+
+## Parse Tree Example
+
+For the input: `let x = 5 + 3 * 2;`
+
+```
+sentencia
+└── declaracion
+    ├── "let"
+    ├── IDENTIFICADOR("x")
+    ├── "="
+    ├── expresion
+    │   └── suma_resta
+    │       ├── mult_div
+    │       │   └── primario
+    │       │       └── NUMERO(5)
+    │       ├── "+"
+    │       └── mult_div
+    │           ├── primario
+    │           │   └── NUMERO(3)
+    │           ├── "*"
+    │           └── primario
+    │               └── NUMERO(2)
+    └── ";"
+```
+
+This parse tree correctly represents `5 + (3 * 2)` due to precedence rules.
+
+<Check>
+The grammar successfully handles operator precedence and associativity through its structure, eliminating the need for a separate precedence-climbing algorithm.
+</Check>

@@ -1,0 +1,259 @@
+---
+title: "Introduction"
+description: "Learn about the Mini-Compilador Educativo, a complete educational compiler for teaching compiler design"
+icon: "book-open"
+---
+
+## What is Mini-Compilador Educativo?
+
+Mini-Compilador Educativo is a fully functional educational compiler designed to teach the fundamental concepts of compiler construction. Built for the Compiler course at ESIME Culhuacán (Group 5CM24), it provides a complete implementation of all major compilation phases from lexical analysis through code generation.
+
+<Note>
+**Authors**: Fidel Ruiz Diego and Sánchez Flores Luis Leonardo  
+**Professor**: Veloz Ortiz Efren  
+**Institution**: ESIME Culhuacán
+</Note>
+
+## Why This Compiler?
+
+<CardGroup cols={2}>
+  <Card title="Complete Pipeline" icon="gears">
+    Implements all six phases of compilation: lexical, syntactic, semantic analysis, IR generation, interpretation, and code generation
+  </Card>
+  <Card title="Educational Focus" icon="graduation-cap">
+    Extensively commented code with clear explanations makes it perfect for learning compiler design
+  </Card>
+  <Card title="Real Assembly Output" icon="microchip">
+    Generates actual x86 assembly code compatible with EMU8086 emulator
+  </Card>
+  <Card title="Dual Interfaces" icon="window-restore">
+    Both CLI and GUI modes with syntax highlighting and live compilation
+  </Card>
+</CardGroup>
+
+## What Problems Does It Solve?
+
+Traditional compiler courses often struggle with:
+- **Abstract concepts**: Compiler theory can be difficult to grasp without seeing it in action
+- **Large codebases**: Production compilers are too complex for educational purposes
+- **Limited feedback**: Students need to see each compilation phase's output
+- **Setup complexity**: Many compiler tools require complex build environments
+
+This compiler solves these problems by:
+- Providing clear, visible output at each compilation stage
+- Keeping the codebase manageable (~2100 lines of well-documented Python)
+- Including both text-based and visual representations of data structures
+- Running with just Python 3.x - no complex setup required
+
+## Key Capabilities
+
+### Lexical Analysis (Scanner)
+
+Converts source code into a stream of tokens:
+
+```python
+# Source code
+let x = 5 + 3;
+
+# Tokens generated
+[LET, IDENTIFICADOR(x), IGUAL, NUMERO(5), SUMA, NUMERO(3), PUNTO_COMA]
+```
+
+### Syntactic Analysis (Parser)
+
+Builds an Abstract Syntax Tree (AST) from tokens:
+
+```
+DeclaracionVariable
+├── nombre: "x"
+└── expresion: ExpresionBinaria
+    ├── izquierda: NumeroLiteral(5)
+    ├── operador: +
+    └── derecha: NumeroLiteral(3)
+```
+
+### Semantic Analysis
+
+Validates logical correctness:
+- Checks for undefined variables
+- Detects potential division by zero
+- Warns about variable redeclaration
+- Identifies self-referential assignments
+
+### Intermediate Representation
+
+Generates three-address code (TAC):
+
+```
+t1 = 5 + 3
+x = t1
+```
+
+### Interpreter
+
+Executes programs directly without assembly:
+
+```
+Programa ejecutado correctamente.
+```
+
+### Code Generation
+
+Produces x86 assembly for EMU8086:
+
+```asm
+.model small
+.stack 100h
+.data
+    x dw 0
+.code
+main proc
+    mov ax, @data
+    mov ds, ax
+    
+    ; x = 5 + 3
+    mov ax, 5
+    push ax
+    mov ax, 3
+    mov bx, ax
+    pop ax
+    add ax, bx
+    mov x, ax
+    
+    mov ah, 4Ch
+    int 21h
+main endp
+end main
+```
+
+## Who Should Use This?
+
+<AccordionGroup>
+  <Accordion title="Computer Science Students">
+    Perfect for students taking compiler design courses who want to understand how compilers work by examining real, working code.
+  </Accordion>
+  
+  <Accordion title="Educators & Professors">
+    Provides a complete, teachable compiler implementation that can be used in lectures, labs, and assignments.
+  </Accordion>
+  
+  <Accordion title="Self-Learners">
+    Anyone interested in compiler construction can study this codebase to learn the fundamental techniques.
+  </Accordion>
+  
+  <Accordion title="Programming Language Enthusiasts">
+    Developers interested in creating their own programming languages can use this as a reference implementation.
+  </Accordion>
+</AccordionGroup>
+
+## The Compiler Workflow
+
+<Steps>
+  <Step title="Write Source Code">
+    Create a program using the simple imperative language syntax with `let` and `print` statements
+  </Step>
+  
+  <Step title="Lexical Analysis">
+    The Scanner reads your code character by character and groups them into tokens
+  </Step>
+  
+  <Step title="Syntactic Analysis">
+    The Parser validates token order against the grammar and builds an AST
+  </Step>
+  
+  <Step title="Semantic Analysis">
+    The Semantic Analyzer checks for logical errors like undefined variables
+  </Step>
+  
+  <Step title="IR Generation">
+    The IR Generator creates three-address code for optimization opportunities
+  </Step>
+  
+  <Step title="Interpretation (Optional)">
+    The Interpreter can execute your program directly to verify correctness
+  </Step>
+  
+  <Step title="Code Generation">
+    The Assembly Generator produces x86 code that can run on EMU8086
+  </Step>
+</Steps>
+
+## Quick Example
+
+Here's a complete program and its compilation:
+
+<Tabs>
+  <Tab title="Source Code">
+    ```python
+    let a = 10;
+    let b = 20;
+    let sum = a + b;
+    print sum;
+    ```
+  </Tab>
+  
+  <Tab title="Execution Output">
+    ```
+    30
+    ```
+  </Tab>
+  
+  <Tab title="Generated Assembly">
+    ```asm
+    .model small
+    .stack 100h
+    .data
+        a dw 0
+        b dw 0
+        sum dw 0
+    .code
+    main proc
+        mov ax, @data
+        mov ds, ax
+        
+        ; a = 10
+        mov ax, 10
+        mov a, ax
+        
+        ; b = 20
+        mov ax, 20
+        mov b, ax
+        
+        ; sum = a + b
+        mov ax, a
+        push ax
+        mov ax, b
+        mov bx, ax
+        pop ax
+        add ax, bx
+        mov sum, ax
+        
+        ; print sum
+        mov ax, sum
+        call print_num
+        
+        mov ah, 4Ch
+        int 21h
+    main endp
+    ; ... print_num routine ...
+    end main
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up Python and install the compiler
+  </Card>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Compile your first program in minutes
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Understand how the compiler is structured
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/scanner">
+    Explore the compiler's classes and methods
+  </Card>
+</CardGroup>

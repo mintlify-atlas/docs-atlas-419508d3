@@ -1,0 +1,534 @@
+---
+title: 'Error Handling'
+description: 'Understanding compilation errors at each phase: lexical, syntax, and semantic'
+icon: 'triangle-exclamation'
+---
+
+# Error Handling
+
+The compiler detects and reports errors at three different phases: **lexical analysis**, **syntax analysis**, and **semantic analysis**. This page demonstrates common errors and how they are caught.
+
+## Error Detection Phases
+
+<Steps>
+  <Step title="Phase 1: Lexical Errors" icon="spell-check">
+    Detected during **tokenization**. These errors occur when the scanner encounters invalid characters or malformed tokens.
+    
+    Examples: `@`, `#`, `$`, or other characters not in the language.
+  </Step>
+
+  <Step title="Phase 2: Syntax Errors" icon="brackets-curly">
+    Detected during **parsing**. These errors occur when tokens are in the wrong order or structure.
+    
+    Examples: missing semicolons, mismatched parentheses, wrong keyword order.
+  </Step>
+
+  <Step title="Phase 3: Semantic Errors" icon="brain">
+    Detected during **semantic analysis**. These errors occur when code is syntactically correct but logically invalid.
+    
+    Examples: undefined variables, division by zero.
+  </Step>
+</Steps>
+
+---
+
+## Lexical Errors
+
+Lexical errors occur when the scanner encounters characters that are not part of the language.
+
+### Invalid Characters
+
+<Tabs>
+  <Tab title="Error Example">
+    ```javascript
+    let x = 10;
+    let @invalid = 5;  // '@' is not valid
+    print x;
+    ```
+  </Tab>
+
+  <Tab title="Error Output">
+    ```text
+    [FASE 1] Análisis Léxico...
+             (Convirtiendo código en tokens)
+      ✗ Error léxico en línea 2, columna 5: carácter inesperado '@'
+      ✓ Completado: 11 tokens generados
+
+    [FASE 2] Análisis Sintáctico...
+             (Verificando gramática y construyendo AST)
+      ✗ Error de sintaxis en línea 2, columna 5: Se esperaba nombre de 
+         variable después de 'let'. Se encontró ''
+
+    [FASE 3] Análisis Semántico...
+             (Verificando que el código tenga sentido)
+      ⚠ Omitido debido a errores de sintaxis
+
+      ✗ RESULTADO: 2 error(es) encontrado(s)
+    ```
+  </Tab>
+
+  <Tab title="Explanation">
+    - The lexer detects the invalid character `@` at line 2, column 5
+    - It creates an ERROR token for this character
+    - The parser then fails because it expected an identifier after `let`
+    - Semantic analysis is skipped due to syntax errors
+  </Tab>
+</Tabs>
+
+### More Invalid Characters
+
+<CardGroup cols={2}>
+  <Card title="Special Characters" icon="at">
+    ```javascript
+    let x = 10 $ 5;  // '$' invalid
+    ```
+    
+    **Error:** "carácter inesperado '$'"
+  </Card>
+
+  <Card title="Hash Symbol" icon="hashtag">
+    ```javascript
+    #define x 10;  // '#' invalid
+    ```
+    
+    **Error:** "carácter inesperado '#'"
+  </Card>
+
+  <Card title="Backtick" icon="grave">
+    ```javascript
+    let `variable = 5;  // '`' invalid
+    ```
+    
+    **Error:** "carácter inesperado '`'"
+  </Card>
+
+  <Card title="Question Mark" icon="question">
+    ```javascript
+    let x = 5 ? 10;  // '?' invalid
+    ```
+    
+    **Error:** "carácter inesperado '?'"
+  </Card>
+</CardGroup>
+
+<Note>
+  **Valid characters** in the language are:
+  - Letters: `a-z`, `A-Z`
+  - Digits: `0-9`
+  - Operators: `+`, `-`, `*`, `/`, `=`
+  - Delimiters: `(`, `)`, `;`
+  - Whitespace: spaces, tabs, newlines
+  - Comments: `//`
+  - Underscore: `_` (in identifiers)
+</Note>
+
+---
+
+## Syntax Errors
+
+Syntax errors occur when tokens are present but in the wrong order or missing required tokens.
+
+### Missing Equal Sign
+
+<Tabs>
+  <Tab title="Error Example">
+    ```javascript
+    let x 10;  // Missing '=' between x and 10
+    print x;
+    ```
+  </Tab>
+
+  <Tab title="Error Output">
+    ```text
+    [FASE 1] Análisis Léxico...
+             (Convirtiendo código en tokens)
+      ✓ Completado: 7 tokens generados
+
+    [FASE 2] Análisis Sintáctico...
+             (Verificando gramática y construyendo AST)
+      ✗ Error de sintaxis en línea 1, columna 7: Se esperaba '=' después 
+         del nombre de variable. Se encontró '10'
+      ✓ Completado: 1 sentencias parseadas
+
+    [FASE 3] Análisis Semántico...
+             (Verificando que el código tenga sentido)
+      ⚠ Omitido debido a errores de sintaxis
+
+      ✗ RESULTADO: 1 error(es) encontrado(s)
+    ```
+  </Tab>
+
+  <Tab title="Explanation">
+    - Lexical analysis succeeds (all characters are valid)
+    - Parser expects `=` after the variable name `x`
+    - Instead, it finds the number `10`
+    - Clear error message shows exactly what was expected and what was found
+  </Tab>
+</Tabs>
+
+### Missing Semicolon
+
+<CodeGroup>
+```javascript Error Code
+let x = 10  // Missing semicolon
+print x;
+```
+
+```text Error Message
+[FASE 2] Análisis Sintáctico...
+  ✗ Error de sintaxis en línea 2, columna 1: Se esperaba ';' al 
+     final de la declaración. Se encontró 'print'
+```
+</CodeGroup>
+
+<Warning>
+  Every statement in the language **must** end with a semicolon `;`. This is not optional!
+</Warning>
+
+### Mismatched Parentheses
+
+<Steps>
+  <Step title="Missing Closing Parenthesis">
+    ```javascript
+    let x = (10 + 5;
+    print x;
+    ```
+    
+    **Error:** "Se esperaba ')' después de la expresión. Se encontró ';'"
+  </Step>
+
+  <Step title="Missing Opening Parenthesis">
+    ```javascript
+    let x = 10 + 5);
+    print x;
+    ```
+    
+    **Error:** "Se esperaba una expresión. Se encontró ')'"
+  </Step>
+
+  <Step title="Extra Closing Parenthesis">
+    ```javascript
+    let x = (10 + 5));
+    print x;
+    ```
+    
+    **Error:** "Se esperaba ';' al final de la declaración. Se encontró ')'"
+  </Step>
+</Steps>
+
+### Invalid Statement Start
+
+```javascript
+x = 10;  // Missing 'let' keyword
+print x;
+```
+
+**Error Message:**
+```text
+[FASE 2] Análisis Sintáctico...
+  ✗ Error de sintaxis en línea 1, columna 1: Se esperaba 'let' o 
+     'print'. Se encontró 'x'
+```
+
+<Info>
+  The compiler only recognizes two types of statements:
+  - `let` declarations
+  - `print` statements
+  
+  Any statement must start with one of these keywords.
+</Info>
+
+---
+
+## Semantic Errors
+
+Semantic errors occur when code is syntactically correct but violates logical rules.
+
+### Undefined Variable
+
+<Tabs>
+  <Tab title="Error Example">
+    ```javascript
+    let y = x + 5;  // 'x' is not defined
+    print y;
+    ```
+  </Tab>
+
+  <Tab title="Error Output">
+    ```text
+    [FASE 1] Análisis Léxico...
+             (Convirtiendo código en tokens)
+      ✓ Completado: 10 tokens generados
+
+    [FASE 2] Análisis Sintáctico...
+             (Verificando gramática y construyendo AST)
+      ✓ Completado: 2 sentencias parseadas
+
+    [FASE 3] Análisis Semántico...
+             (Verificando que el código tenga sentido)
+      ✗ Error semántico en línea 1, columna 9: la variable 'x' no ha 
+         sido declarada
+
+      ✗ RESULTADO: 1 error(es) encontrado(s)
+    ```
+  </Tab>
+
+  <Tab title="Explanation">
+    - Lexical analysis: ✓ All tokens are valid
+    - Syntax analysis: ✓ Grammar is correct
+    - Semantic analysis: ✗ Variable `x` used before declaration
+    
+    The semantic analyzer maintains a set of declared variables and checks every identifier reference.
+  </Tab>
+</Tabs>
+
+### Self-Reference in Declaration
+
+```javascript
+let x = x + 1;  // 'x' used in its own definition
+print x;
+```
+
+**Error:**
+```text
+[FASE 3] Análisis Semántico...
+  ✗ Error semántico en línea 1, columna 9: la variable 'x' no ha 
+     sido declarada
+```
+
+<Note>
+  Variables cannot reference themselves in their own declaration. The variable is only added to the symbol table **after** its initialization expression is analyzed.
+</Note>
+
+### Division by Zero
+
+<Tabs>
+  <Tab title="Error Example">
+    ```javascript
+    let x = 10 / 0;  // Division by zero
+    print x;
+    ```
+  </Tab>
+
+  <Tab title="Error Output">
+    ```text
+    [FASE 1] Análisis Léxico...
+             (Convirtiendo código en tokens)
+      ✓ Completado: 9 tokens generados
+
+    [FASE 2] Análisis Sintáctico...
+             (Verificando gramática y construyendo AST)
+      ✓ Completado: 2 sentencias parseadas
+
+    [FASE 3] Análisis Semántico...
+             (Verificando que el código tenga sentido)
+      ✗ Error semántico en línea 1, columna 11: división entre cero 
+         detectada
+
+      ✗ RESULTADO: 1 error(es) encontrado(s)
+    ```
+  </Tab>
+
+  <Tab title="Limitation">
+    The compiler only detects division by zero when the divisor is a **literal number** (e.g., `0`).
+    
+    It **cannot** detect division by zero with variables:
+    ```javascript
+    let y = 0;
+    let x = 10 / y;  // No error at compile-time
+    ```
+    
+    This would cause a runtime error if the code were executed.
+  </Tab>
+</Tabs>
+
+### Variable Redeclaration Warning
+
+```javascript
+let x = 5;
+let x = 10;  // Redeclaring 'x'
+print x;
+```
+
+**Output:**
+```text
+[FASE 3] Análisis Semántico...
+  ✗ Advertencia en línea 2, columna 5: la variable 'x' ya fue 
+     declarada anteriormente
+  ✓ Completado: 1 variables verificadas
+
+  ✗ RESULTADO: 1 error(es) encontrado(s)
+```
+
+<Info>
+  Although labeled as "Advertencia" (warning), variable redeclaration is counted as an error and prevents successful compilation.
+</Info>
+
+---
+
+## Error Recovery
+
+The compiler attempts to recover from syntax errors and report multiple errors in a single compilation.
+
+### Multiple Errors
+
+<CodeGroup>
+```javascript Program with Multiple Errors
+let x 10;        // Error 1: Missing '='
+let y = z + 5;   // Error 2: 'z' undefined
+print x          // Error 3: Missing ';'
+```
+
+```text Error Report
+[FASE 1] Análisis Léxico...
+  ✓ Completado: 13 tokens generados
+
+[FASE 2] Análisis Sintáctico...
+  ✗ Error de sintaxis en línea 1, columna 7: Se esperaba '=' después
+     del nombre de variable. Se encontró '10'
+  ✗ Error de sintaxis en línea 3, columna 7: Se esperaba ';' al final
+     de print. Se encontró ''
+  ✓ Completado: 2 sentencias parseadas
+
+[FASE 3] Análisis Semántico...
+  ⚠ Omitido debido a errores de sintaxis
+
+  ✗ RESULTADO: 2 error(es) encontrado(s)
+```
+</CodeGroup>
+
+### Synchronization Points
+
+When the parser encounters an error, it uses **panic mode recovery**:
+
+1. Report the error
+2. Skip tokens until a **synchronization point** is found:
+   - Semicolon (`;`) - end of statement
+   - Keywords (`let`, `print`) - start of new statement
+3. Continue parsing from the synchronization point
+
+This allows the compiler to report multiple errors instead of stopping at the first one.
+
+---
+
+## Common Error Patterns
+
+<AccordionGroup>
+  <Accordion title="Forgetting Semicolons" icon="semicolon">
+    **Problem:** Every statement must end with `;`
+    
+    ```javascript
+    let x = 10  // ✗ Missing semicolon
+    let x = 10; // ✓ Correct
+    ```
+    
+    The semicolon is not optional in this language.
+  </Accordion>
+
+  <Accordion title="Wrong Keyword Order" icon="arrow-right-arrow-left">
+    **Problem:** Variables must be declared with `let name = value;`
+    
+    ```javascript
+    x let = 10;   // ✗ Wrong order
+    let = x 10;   // ✗ Wrong order
+    let x = 10;   // ✓ Correct
+    ```
+  </Accordion>
+
+  <Accordion title="Using Variables Before Declaration" icon="timeline">
+    **Problem:** Variables must be declared before use
+    
+    ```javascript
+    print x;      // ✗ 'x' not declared
+    let x = 10;
+    ```
+    
+    Correct order:
+    ```javascript
+    let x = 10;   // ✓ Declare first
+    print x;      // ✓ Then use
+    ```
+  </Accordion>
+
+  <Accordion title="Unbalanced Parentheses" icon="brackets-round">
+    **Problem:** Every `(` must have a matching `)`
+    
+    ```javascript
+    let x = (10 + 5;     // ✗ Missing ')'
+    let x = 10 + 5);     // ✗ Extra ')'
+    let x = (10 + 5);    // ✓ Balanced
+    ```
+  </Accordion>
+
+  <Accordion title="Invalid Operators" icon="calculator">
+    **Problem:** Only `+`, `-`, `*`, `/` are supported
+    
+    ```javascript
+    let x = 10 % 3;      // ✗ Modulo not supported
+    let x = 10 ** 2;     // ✗ Exponentiation not supported
+    let x = 10 + 3;      // ✓ Addition supported
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Error Message Format
+
+All error messages follow a consistent format:
+
+```
+[Type] en línea [line], columna [column]: [description]
+```
+
+**Components:**
+- **Type**: `Error léxico`, `Error de sintaxis`, or `Error semántico`
+- **Line**: Line number where the error occurred (1-indexed)
+- **Column**: Column number where the error occurred (1-indexed)
+- **Description**: Human-readable explanation of the error
+
+### Example
+
+```text
+Error semántico en línea 3, columna 9: la variable 'count' no ha sido declarada
+│              │         │           │                │
+│              │         │           │                └─ Description
+│              │         │           └────────────────── Column number
+│              │         └────────────────────────────── Line number
+│              └──────────────────────────────────────── "at line"
+└─────────────────────────────────────────────────────── Error type
+```
+
+<Tip>
+  Use the line and column numbers to quickly locate errors in your source code. Most text editors can jump to a specific line:column position.
+</Tip>
+
+---
+
+## Best Practices for Avoiding Errors
+
+<CardGroup cols={2}>
+  <Card title="Always Use Semicolons" icon="circle-check">
+    End every statement with `;` - no exceptions.
+  </Card>
+
+  <Card title="Declare Before Use" icon="arrow-down-1-9">
+    Always declare variables with `let` before using them.
+  </Card>
+
+  <Card title="Match Parentheses" icon="equals">
+    For every `(`, make sure there's a corresponding `)`.
+  </Card>
+
+  <Card title="Check Division" icon="divide">
+    Avoid dividing by zero, even with literals.
+  </Card>
+
+  <Card title="Use Valid Characters" icon="spell-check">
+    Stick to letters, numbers, `_`, and supported operators.
+  </Card>
+
+  <Card title="Follow Syntax Rules" icon="book">
+    Learn the language syntax: `let name = expr;` and `print expr;`
+  </Card>
+</CardGroup>
